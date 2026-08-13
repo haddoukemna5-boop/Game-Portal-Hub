@@ -23,7 +23,7 @@ function cap(s: string): string {
 function deriveDisplayName(canonicalName: string): { firstName: string; lastName: string } {
   const parts = canonicalName.trim().split(/\s+/);
   const firstName = cap(parts[0] ?? canonicalName);
-  const lastName = parts.length > 1 ? parts.slice(1).map(cap).join(" ") : "Operator";
+  const lastName = parts.length > 1 ? parts.slice(1).map(cap).join(" ") : "";
   return { firstName, lastName };
 }
 
@@ -37,12 +37,15 @@ router.get("/results", requireAdmin, async (req, res): Promise<void> => {
     .orderBy(desc(gameResultsTable.score), asc(gameResultsTable.totalTime));
 
   const results = rows.map(({ result, displayName }) => {
-    if (!displayName) return result;
+    if (!displayName) {
+      // "Operator" was a legacy placeholder, not a real surname.
+      return result.lastName.toLowerCase() === "operator" ? { ...result, lastName: "" } : result;
+    }
     const parts = displayName.trim().split(/\s+/);
     return {
       ...result,
       firstName: cap(parts[0] ?? result.firstName),
-      lastName: parts.length > 1 ? parts.slice(1).map(cap).join(" ") : "Operator",
+      lastName: parts.length > 1 ? parts.slice(1).map(cap).join(" ") : "",
     };
   });
 

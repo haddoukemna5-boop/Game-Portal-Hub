@@ -71,6 +71,19 @@ export async function runMigrations(): Promise<void> {
         ADD COLUMN IF NOT EXISTS display_name text;
     `);
 
+    // ── Migration: recover legacy leaderboard display names ──
+    // Older accounts have no display_name. Reuse a real name already stored on
+    // their result when available, but never promote the old "Operator"
+    // placeholder into a display name.
+    await client.query(`
+      UPDATE player_progress AS pp
+      SET display_name = NULLIF(TRIM(gr.first_name || ' ' || gr.last_name), '')
+      FROM game_results AS gr
+      WHERE gr.player_name = pp.name
+        AND pp.display_name IS NULL
+        AND lower(gr.last_name) <> 'operator';
+    `);
+
     await client.query("COMMIT");
     logger.info("Database migrations applied successfully");
   } catch (err) {
