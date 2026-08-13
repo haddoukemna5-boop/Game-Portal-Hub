@@ -304,8 +304,8 @@ function Finale({ progress, setProgress, onReset, passwordHash }: { progress: Pr
 function PlayerPage() {
   const [progress, setProgress] = useState<Progress>(() => readProgress());
   const [name, setName] = useState(() => readProgress().name || '');
-  const [started, setStarted] = useState(() => !!readProgress().name);
-  const [screen, setScreen] = useState<string>(() => readProgress().submitted ? 'finale' : 'map');
+  const [started, setStarted] = useState(false);
+  const [screen, setScreen] = useState<string>('map');
   const [locked, setLocked] = useState<ChallengeId | null>(null);
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
