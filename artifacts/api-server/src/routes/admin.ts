@@ -14,18 +14,22 @@ function adminPassword() {
   return password && password.length > 0 ? password : null;
 }
 
-function sessionSecret() {
-  return process.env.SESSION_SECRET || "cyber-treasure-hunt-admin-session";
+function sessionSecret(): string | null {
+  const secret = process.env.SESSION_SECRET;
+  return secret && secret.length > 0 ? secret : null;
 }
 
-function signature(value: string) {
-  return createHmac("sha256", sessionSecret()).update(value).digest("hex");
+function signature(value: string, secret: string) {
+  return createHmac("sha256", secret).update(value).digest("hex");
 }
 
-function makeSession() {
+function makeSession(): string | null {
+  const secret = sessionSecret();
+  if (!secret) return null;
+
   const expiresAt = Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS;
   const value = `admin.${expiresAt}`;
-  return `${value}.${signature(value)}`;
+  return `${value}.${signature(value, secret)}`;
 }
 
 function cookieValue(req: Parameters<RequestHandler>[0]) {
@@ -35,12 +39,14 @@ function cookieValue(req: Parameters<RequestHandler>[0]) {
 }
 
 function isValidSession(token: string | undefined) {
+  const secret = sessionSecret();
+  if (!secret) return false;
   if (!token) return false;
   const parts = token.split(".");
   if (parts.length !== 3 || parts[0] !== "admin") return false;
   const expiresAt = Number(parts[1]);
   if (!Number.isFinite(expiresAt) || expiresAt < Math.floor(Date.now() / 1000)) return false;
-  const expected = signature(`${parts[0]}.${parts[1]}`);
+  const expected = signature(`${parts[0]}.${parts[1]}`, secret);
   const actual = parts[2];
   if (actual.length !== expected.length) return false;
   return timingSafeEqual(Buffer.from(actual), Buffer.from(expected));
@@ -64,7 +70,8 @@ router.post("/admin/login", (req, res): void => {
   }
 
   const configuredPassword = adminPassword();
-  if (!configuredPassword) {
+  const secret = sessionSecret();
+  if (!configuredPassword || !secret) {
     res.status(503).json({ error: "Admin authentication is not configured." });
     return;
   }
@@ -74,9 +81,15 @@ router.post("/admin/login", (req, res): void => {
     return;
   }
 
+  const session = makeSession();
+  if (!session) {
+    res.status(503).json({ error: "Admin authentication is not configured." });
+    return;
+  }
+
   res.setHeader(
     "Set-Cookie",
-    `${COOKIE_NAME}=${makeSession()}; HttpOnly; Path=/api; SameSite=Lax; Max-Age=${SESSION_TTL_SECONDS}`,
+    `${COOKIE_NAME}=${session}; HttpOnly; Path=/api; SameSite=Lax; Max-Age=${SESSION_TTL_SECONDS}`,
   );
   res.json({ authenticated: true });
 });

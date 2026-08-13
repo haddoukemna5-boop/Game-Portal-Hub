@@ -12,9 +12,6 @@ export interface ResetPasswordInput {
      * @minLength 1
      */
   name: string;
-  /**
-     * SHA-256 hash of the new password.
-     * @minLength 1
-     */
-  newPasswordHash: string;
+  /** @minLength 1 */
+  password: string;
 }

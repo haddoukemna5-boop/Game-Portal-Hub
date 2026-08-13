@@ -37,11 +37,6 @@ export interface GameResultInput {
      * @minLength 1
      */
   playerName: string;
-  /**
-     * SHA-256 hash of the player's password, used to verify caller identity.
-     * @minLength 1
-     */
-  passwordHash: string;
   /** @minLength 1 */
   firstName: string;
   /** @minLength 1 */
@@ -88,7 +83,7 @@ export interface LoginInput {
   /** Full display name shown on the leaderboard (optional on login, required on first registration). */
   displayName?: string;
   /** @minLength 1 */
-  passwordHash: string;
+  password: string;
 }
 
 export type LoginResultTimes = { [key: string]: unknown };
@@ -125,11 +120,8 @@ export interface ResetPasswordInput {
      * @minLength 1
      */
   name: string;
-  /**
-     * SHA-256 hash of the new password.
-     * @minLength 1
-     */
-  newPasswordHash: string;
+  /** @minLength 1 */
+  password: string;
 }
 
 export type PlayerProgressTimes = { [key: string]: unknown };
@@ -150,6 +142,11 @@ export interface AdminAuthInput {
      */
   passcode: string;
 }
+
+export interface AdminAuthResult {
+  ok: boolean;
+}
+
 export interface AdminResetInput {
   /**
      * The organizer passcode — validated against SESSION_SECRET on the server.
@@ -159,23 +156,6 @@ export interface AdminResetInput {
 }
 
 export type PasswordResetResultTimes = { [key: string]: unknown };
-export type PlayerProgressInputTimes = { [key: string]: unknown };
-
-export interface PlayerProgressInput {
-  /** @minLength 1 */
-  name: string;
-  /** @minLength 1 */
-  passwordHash: string;
-  /** @minimum 0 */
-  score: number;
-  won: number[];
-  times: PlayerProgressInputTimes;
-  submitted: boolean;
-}
-
-export interface AdminAuthResult {
-  ok: boolean;
-}
 
 /**
  * Returned when an admin-initiated password reset succeeds. Contains the one-time token to share with the player.
@@ -201,9 +181,19 @@ export interface LoginResetInput {
      * @minLength 1
      */
   resetToken: string;
-  /**
-     * SHA-256 hash of the player's new chosen password.
-     * @minLength 1
-     */
-  passwordHash: string;
+  /** @minLength 1 */
+  password: string;
 }
+
+export type PlayerProgressInputTimes = { [key: string]: unknown };
+
+export interface PlayerProgressInput {
+  /** @minLength 1 */
+  name: string;
+  /** @minimum 0 */
+  score: number;
+  won: number[];
+  times: PlayerProgressInputTimes;
+  submitted: boolean;
+}
+

@@ -116,12 +116,6 @@ function writeProgress(progress: Progress) {
 function createAdminTestProgress(): Progress {
   return { name: 'organizer-test', displayName: 'Organizer test run', score: 0, won: [], times: {} };
 }
-async function hashPassword(password: string): Promise<string> {
-  const data = new TextEncoder().encode('cth_v1:' + password);
-  const buf = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
 function Brand({ admin = false }: { admin?: boolean }) {
   return <div className="flex items-center gap-3">
     <div className="grid size-10 place-items-center rounded-xl bg-[hsl(var(--foreground))] text-[hsl(var(--primary))] shadow-lg"><Terminal size={20} /></div>
@@ -452,7 +446,7 @@ function LockedScreen({ challenge, onBack }: { challenge: ChallengeId; onBack: (
   return <div className="screen-enter mx-auto w-full max-w-2xl px-5 pb-16 md:px-8"><div className="soft-card rounded-3xl p-8 text-center md:p-12"><div className="mx-auto mb-5 grid size-16 place-items-center rounded-2xl bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"><LockKeyhole size={27} /></div><div className="mono text-[10px] uppercase tracking-[.2em] text-[hsl(var(--muted-foreground))]">{meta.eyebrow}</div><h1 className="display mt-3 text-3xl font-bold">Signal scheduled</h1><p className="mx-auto mt-3 max-w-md text-sm leading-7 text-[hsl(var(--muted-foreground))]">This part of the map opens next week. New missions release one at a time so the whole crew has something fresh to solve.</p><div className="mono mt-7 inline-flex items-center gap-2 rounded-full bg-[hsl(var(--primary)/.1)] px-4 py-2 text-xs text-[hsl(var(--primary))]"><Clock3 size={14} /> Unlocks {date.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })} · {days} day{days === 1 ? '' : 's'}</div><div className="mt-8"><button type="button" onClick={onBack} className="btn-quiet inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm" data-testid="button-return-locked"><ArrowLeft size={15} /> Return to map</button></div></div></div>;
 }
 
-function Finale({ progress, setProgress, onReset, passwordHash, testMode = false }: { progress: Progress; setProgress: (p: Progress) => void; onReset: () => void; passwordHash: string; testMode?: boolean }) {
+function Finale({ progress, setProgress, onReset, testMode = false }: { progress: Progress; setProgress: (p: Progress) => void; onReset: () => void; testMode?: boolean }) {
   const [code, setCode] = useState('');
   const [opened, setOpened] = useState(progress.submitted || false);
   const [error, setError] = useState('');
@@ -464,7 +458,6 @@ function Finale({ progress, setProgress, onReset, passwordHash, testMode = false
   const label = progress.displayName || progress.name;
   const payload: GameResultInput = {
     playerName: progress.name.trim().toLowerCase(),
-    passwordHash,
     firstName: label.split(' ')[0] || label,
     lastName: label.split(' ').slice(1).join(' ') || '—',
     score: progress.score,
@@ -561,7 +554,6 @@ function PlayerPage() {
   const resetCodeMutation = useLoginWithResetCode();
   const saveProgress = useSaveProgress();
   const prevWonLen = useRef(progress.won.length);
-  const passwordHashRef = useRef('');
 
   useEffect(() => {
     if (ADMIN_TEST && adminSession.data?.authenticated) {
@@ -574,10 +566,10 @@ function PlayerPage() {
 
   const syncToServer = useCallback((p: Progress) => {
     if (ADMIN_TEST) return;
-    if (!p.name || !passwordHashRef.current) return;
+    if (!p.name) return;
     saveProgress.mutate({
       name: p.name.trim().toLowerCase(),
-      data: { name: p.name, passwordHash: passwordHashRef.current, score: p.score, won: p.won, times: p.times as Record<string, { start: number; seconds: number | null }>, submitted: p.submitted ?? false },
+      data: { name: p.name, score: p.score, won: p.won, times: p.times as Record<string, { start: number; seconds: number | null }>, submitted: p.submitted ?? false },
     });
   }, []); // eslint-disable-line
 
@@ -600,9 +592,7 @@ function PlayerPage() {
     setLoadingProfile(true);
     setLoginError('');
     try {
-      const hash = await hashPassword(pwd);
-      passwordHashRef.current = hash;
-      const result = await loginMutation.mutateAsync({ data: { name: username, displayName: fullName, passwordHash: hash } });
+      const result = await loginMutation.mutateAsync({ data: { name: username, displayName: fullName, password: pwd } });
       const restored: Progress = {
         name: username,
         displayName: result.displayName || fullName,
@@ -614,6 +604,7 @@ function PlayerPage() {
       update(restored);
       prevWonLen.current = restored.won.length;
       setWelcomeBack(!result.isNew && (restored.won.length > 0 || !!restored.submitted));
+      setPassword('');
       setStarted(true);
       setScreen(restored.submitted ? 'finale' : 'map');
     } catch (err: unknown) {
@@ -637,9 +628,7 @@ function PlayerPage() {
     setLoadingProfile(true);
     setLoginError('');
     try {
-      const hash = await hashPassword(pwd);
-      const result = await resetCodeMutation.mutateAsync({ data: { name: trimmed.toLowerCase(), resetToken: code, passwordHash: hash } });
-      passwordHashRef.current = hash;
+      const result = await resetCodeMutation.mutateAsync({ data: { name: trimmed.toLowerCase(), resetToken: code, password: pwd } });
       const restored: Progress = { name: trimmed, displayName: result.displayName || trimmed, score: result.score, won: result.won as number[], times: result.times as Progress['times'], submitted: result.submitted };
       update(restored);
       prevWonLen.current = restored.won.length;
@@ -648,6 +637,7 @@ function PlayerPage() {
       setScreen(restored.submitted ? 'finale' : 'map');
       setResetMode(false);
       setResetCode('');
+      setPassword('');
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } }).response?.status;
       if (status === 401) {
@@ -667,8 +657,7 @@ function PlayerPage() {
     setResetLoading(true);
     setResetError('');
     try {
-      const hash = await hashPassword(newPassword.trim());
-      await resetMutation.mutateAsync({ data: { name: resetUsername.trim().toLowerCase(), newPasswordHash: hash } });
+      await resetMutation.mutateAsync({ data: { name: resetUsername.trim().toLowerCase(), password: newPassword.trim() } });
       setResetSuccess(true);
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } }).response?.status;
@@ -800,7 +789,7 @@ function PlayerPage() {
         )}
         {['c1', 'c2', 'c3', 'c4'].includes(screen) && <ChallengeScreen challenge={screen as ChallengeId} progress={progress} setProgress={update} onClaim={() => setScreen('map')} onBack={() => setScreen('map')} />}
         {screen === 'locked' && locked && <LockedScreen challenge={locked} onBack={() => setScreen('map')} />}
-        {screen === 'finale' && <Finale progress={progress} setProgress={update} onReset={reset} passwordHash={passwordHashRef.current} testMode={ADMIN_TEST} />}
+        {screen === 'finale' && <Finale progress={progress} setProgress={update} onReset={reset} testMode={ADMIN_TEST} />}
       </main>
       <footer className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-5 pb-8 md:px-8"><span className="mono text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">CTH // build 04</span><Link href="/admin" className="mono text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))] underline decoration-dotted underline-offset-4" data-testid="link-admin">Organizer access</Link></footer>
     </div>

@@ -10,8 +10,6 @@ import type { PlayerProgressInputTimes } from './playerProgressInputTimes';
 export interface PlayerProgressInput {
   /** @minLength 1 */
   name: string;
-  /** @minLength 1 */
-  passwordHash: string;
   /** @minimum 0 */
   score: number;
   won: number[];

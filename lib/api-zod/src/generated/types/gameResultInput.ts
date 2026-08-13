@@ -12,11 +12,6 @@ export interface GameResultInput {
      * @minLength 1
      */
   playerName: string;
-  /**
-     * SHA-256 hash of the player's password, used to verify caller identity.
-     * @minLength 1
-     */
-  passwordHash: string;
   /** @minLength 1 */
   firstName: string;
   /** @minLength 1 */

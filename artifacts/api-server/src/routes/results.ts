@@ -8,6 +8,7 @@ import {
   SubmitResultResponse,
 } from "@workspace/api-zod";
 import { requireAdmin } from "./admin";
+import { authenticatedPlayerName, requirePlayer } from "../lib/player-auth";
 
 const router: IRouter = Router();
 
@@ -52,7 +53,7 @@ router.get("/results", requireAdmin, async (req, res): Promise<void> => {
   res.json(ListResultsResponse.parse(results));
 });
 
-router.post("/results", async (req, res): Promise<void> => {
+router.post("/results", requirePlayer, async (req, res): Promise<void> => {
   const parsed = SubmitResultBody.safeParse(req.body);
   if (!parsed.success) {
     req.log.warn({ errors: parsed.error.message }, "Invalid game result");
@@ -62,26 +63,21 @@ router.post("/results", async (req, res): Promise<void> => {
 
   const data = parsed.data;
   const playerName = data.playerName.trim().toLowerCase();
+  const authenticatedName = authenticatedPlayerName(req);
 
-  // Verify the caller is a registered player with a stored password
+  // The HTTP-only player session is the only credential accepted for result writes.
+  if (!authenticatedName || authenticatedName !== playerName) {
+    res.status(403).json({ error: "Forbidden." });
+    return;
+  }
+
   const [player] = await db
-    .select({ passwordHash: playerProgressTable.passwordHash, name: playerProgressTable.name, displayName: playerProgressTable.displayName })
+    .select({ name: playerProgressTable.name, displayName: playerProgressTable.displayName })
     .from(playerProgressTable)
     .where(eq(playerProgressTable.name, playerName))
     .limit(1);
 
   if (!player) {
-    res.status(403).json({ error: "Forbidden." });
-    return;
-  }
-
-  // Require a stored password — accounts without one cannot submit results
-  if (!player.passwordHash) {
-    res.status(403).json({ error: "Forbidden." });
-    return;
-  }
-
-  if (player.passwordHash !== data.passwordHash) {
     res.status(403).json({ error: "Forbidden." });
     return;
   }

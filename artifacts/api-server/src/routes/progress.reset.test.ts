@@ -19,6 +19,7 @@ import { randomUUID } from "crypto";
 import { eq } from "drizzle-orm";
 import app from "../app";
 import { db, playerProgressTable } from "@workspace/db";
+import { hashPassword } from "../lib/password";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -29,7 +30,7 @@ const SESSION_SECRET = process.env.SESSION_SECRET ?? "test-admin-secret-123";
 /** Create a fresh player directly in the DB, bypassing the login route. */
 async function seedPlayer(opts: {
   name: string;
-  passwordHash: string;
+  password?: string;
   score?: number;
   won?: number[];
 }) {
@@ -37,7 +38,7 @@ async function seedPlayer(opts: {
     .insert(playerProgressTable)
     .values({
       name: opts.name.toLowerCase(),
-      passwordHash: opts.passwordHash,
+      passwordHash: await hashPassword(opts.password ?? "old-password"),
       score: opts.score ?? 42,
       won: opts.won ?? [0, 1],
       times: { c1: { start: 1000, seconds: 120 }, c2: { start: 2000, seconds: 90 } },
@@ -85,12 +86,12 @@ afterEach(async () => {
 
 describe("POST /api/login/reset — password reset token redemption", () => {
   it("redeems a valid token, sets the new password, preserves score/won/times, and returns progress", async () => {
-    await seedPlayer({ name: testPlayerName, passwordHash: "oldhash", score: 42, won: [0, 1] });
+    await seedPlayer({ name: testPlayerName, score: 42, won: [0, 1] });
     const { resetToken } = await adminReset(testPlayerName);
 
     const res = await request(app)
       .post("/api/login/reset")
-      .send({ name: testPlayerName, resetToken, passwordHash: "newhash" });
+      .send({ name: testPlayerName, resetToken, password: "new-password" });
 
     expect(res.status).toBe(200);
     expect(res.body.name).toBe(testPlayerName.toLowerCase());
@@ -101,29 +102,29 @@ describe("POST /api/login/reset — password reset token redemption", () => {
     // Old password must no longer work after reset
     const loginRes = await request(app)
       .post("/api/login")
-      .send({ name: testPlayerName, passwordHash: "oldhash" });
+      .send({ name: testPlayerName, password: "old-password" });
     expect(loginRes.status).toBe(401);
 
     // New password must work
     const newLoginRes = await request(app)
       .post("/api/login")
-      .send({ name: testPlayerName, passwordHash: "newhash" });
+      .send({ name: testPlayerName, password: "new-password" });
     expect(newLoginRes.status).toBe(200);
     expect(newLoginRes.body.score).toBe(42);
   });
 
   it("allows exactly one of two concurrent redemptions to succeed — the other gets 401", async () => {
-    await seedPlayer({ name: testPlayerName, passwordHash: "oldhash" });
+    await seedPlayer({ name: testPlayerName });
     const { resetToken } = await adminReset(testPlayerName);
 
     // Fire both requests simultaneously.
     const [res1, res2] = await Promise.all([
       request(app)
         .post("/api/login/reset")
-        .send({ name: testPlayerName, resetToken, passwordHash: "password-a" }),
+        .send({ name: testPlayerName, resetToken, password: "password-a" }),
       request(app)
         .post("/api/login/reset")
-        .send({ name: testPlayerName, resetToken, passwordHash: "password-b" }),
+        .send({ name: testPlayerName, resetToken, password: "password-b" }),
     ]);
 
     const statuses = [res1.status, res2.status].sort();
@@ -132,7 +133,7 @@ describe("POST /api/login/reset — password reset token redemption", () => {
   });
 
   it("rejects an expired token", async () => {
-    await seedPlayer({ name: testPlayerName, passwordHash: "oldhash" });
+    await seedPlayer({ name: testPlayerName });
 
     // Directly insert an already-expired token.
     await db
@@ -146,53 +147,53 @@ describe("POST /api/login/reset — password reset token redemption", () => {
 
     const res = await request(app)
       .post("/api/login/reset")
-      .send({ name: testPlayerName, resetToken: "EXPIREDTOKEN1234", passwordHash: "newhash" });
+      .send({ name: testPlayerName, resetToken: "EXPIREDTOKEN1234", password: "new-password" });
 
     expect(res.status).toBe(401);
   });
 
   it("rejects a wrong token", async () => {
-    await seedPlayer({ name: testPlayerName, passwordHash: "oldhash" });
+    await seedPlayer({ name: testPlayerName });
     await adminReset(testPlayerName); // Issues a real token (different value)
 
     const res = await request(app)
       .post("/api/login/reset")
-      .send({ name: testPlayerName, resetToken: "WRONGWRONGWRONG1", passwordHash: "newhash" });
+      .send({ name: testPlayerName, resetToken: "WRONGWRONGWRONG1", password: "new-password" });
 
     expect(res.status).toBe(401);
   });
 
   it("returns 401 when the same valid token is redeemed a second time", async () => {
-    await seedPlayer({ name: testPlayerName, passwordHash: "oldhash" });
+    await seedPlayer({ name: testPlayerName });
     const { resetToken } = await adminReset(testPlayerName);
 
     // First redemption succeeds.
     const first = await request(app)
       .post("/api/login/reset")
-      .send({ name: testPlayerName, resetToken, passwordHash: "newhash" });
+      .send({ name: testPlayerName, resetToken, password: "new-password" });
     expect(first.status).toBe(200);
 
     // Second redemption must fail — token is already consumed.
     const second = await request(app)
       .post("/api/login/reset")
-      .send({ name: testPlayerName, resetToken, passwordHash: "anotherhash" });
+      .send({ name: testPlayerName, resetToken, password: "another-password" });
     expect(second.status).toBe(401);
   });
 });
 
 describe("DELETE /api/progress/:name/password — admin reset initiation", () => {
   it("clears the existing password hash so the old password no longer works", async () => {
-    await seedPlayer({ name: testPlayerName, passwordHash: "oldhash" });
+    await seedPlayer({ name: testPlayerName });
     await adminReset(testPlayerName);
 
     const loginRes = await request(app)
       .post("/api/login")
-      .send({ name: testPlayerName, passwordHash: "oldhash" });
+      .send({ name: testPlayerName, password: "old-password" });
     expect(loginRes.status).toBe(401);
   });
 
   it("rejects an incorrect admin passcode", async () => {
-    await seedPlayer({ name: testPlayerName, passwordHash: "oldhash" });
+    await seedPlayer({ name: testPlayerName });
 
     const res = await request(app)
       .delete(`/api/progress/${encodeURIComponent(testPlayerName)}/password`)

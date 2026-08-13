@@ -14,9 +14,6 @@ export interface LoginResetInput {
      * @minLength 1
      */
   resetToken: string;
-  /**
-     * SHA-256 hash of the player's new chosen password.
-     * @minLength 1
-     */
-  passwordHash: string;
+  /** @minLength 1 */
+  password: string;
 }

@@ -51,6 +51,7 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 
+
 const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKey: K } => {
   const result = { queryKey } as T & { queryKey: K };
   for (const key of Object.keys(query)) {
@@ -67,6 +68,8 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
 };
 
 export const getHealthCheckUrl = () => {
+
+
 
 
   return `/api/healthz`
@@ -88,6 +91,9 @@ export const healthCheck = async ( options?: Parameters<typeof customFetch>[1]):
 );}
 
 
+
+
+
 export const getHealthCheckQueryKey = () => {
     return [
     `/api/healthz`
@@ -103,7 +109,11 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
   const queryKey =  queryOptions?.queryKey ?? getHealthCheckQueryKey();
 
 
+
     const queryFn: QueryFunction<Awaited<ReturnType<typeof healthCheck>>> = ({ signal }) => healthCheck({ signal, ...requestOptions });
+
+
+
 
 
    return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData> & { queryKey: QueryKey }
@@ -130,7 +140,14 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 }
 
 
+
+
+
+
+
 export const getListResultsUrl = () => {
+
+
 
 
   return `/api/results`
@@ -152,6 +169,9 @@ export const listResults = async ( options?: Parameters<typeof customFetch>[1]):
 );}
 
 
+
+
+
 export const getListResultsQueryKey = () => {
     return [
     `/api/results`
@@ -167,7 +187,11 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
   const queryKey =  queryOptions?.queryKey ?? getListResultsQueryKey();
 
 
+
     const queryFn: QueryFunction<Awaited<ReturnType<typeof listResults>>> = ({ signal }) => listResults({ signal, ...requestOptions });
+
+
+
 
 
    return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listResults>>, TError, TData> & { queryKey: QueryKey }
@@ -194,7 +218,14 @@ export function useListResults<TData = Awaited<ReturnType<typeof listResults>>, 
 }
 
 
+
+
+
+
+
 export const getSubmitResultUrl = () => {
+
+
 
 
   return `/api/results`
@@ -216,6 +247,9 @@ export const submitResult = async (gameResultInput: GameResultInput, options?: P
 );}
 
 
+
+
+
 export const getSubmitResultMutationOptions = <TError = ErrorType<ErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitResult>>, TError,{data: BodyType<GameResultInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof submitResult>>, TError,{data: BodyType<GameResultInput>}, TContext> => {
@@ -228,11 +262,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitResult>>, {data: BodyType<GameResultInput>}> = (props) => {
           const {data} = props ?? {};
 
           return  submitResult(data,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -258,6 +298,8 @@ export const useSubmitResult = <TError = ErrorType<ErrorResponse>,
 export const getLoginUrl = () => {
 
 
+
+
   return `/api/login`
 }
 
@@ -277,6 +319,9 @@ export const login = async (loginInput: LoginInput, options?: Parameters<typeof 
 );}
 
 
+
+
+
 export const getLoginMutationOptions = <TError = ErrorType<ErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof login>>, TError,{data: BodyType<LoginInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof login>>, TError,{data: BodyType<LoginInput>}, TContext> => {
@@ -289,11 +334,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof login>>, {data: BodyType<LoginInput>}> = (props) => {
           const {data} = props ?? {};
 
           return  login(data,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -319,6 +370,8 @@ export const useLogin = <TError = ErrorType<ErrorResponse>,
 export const getAdminLoginUrl = () => {
 
 
+
+
   return `/api/admin/login`
 }
 
@@ -338,6 +391,9 @@ export const adminLogin = async (adminLoginInput: AdminLoginInput, options?: Par
 );}
 
 
+
+
+
 export const getAdminLoginMutationOptions = <TError = ErrorType<ErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminLogin>>, TError,{data: BodyType<AdminLoginInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof adminLogin>>, TError,{data: BodyType<AdminLoginInput>}, TContext> => {
@@ -350,11 +406,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminLogin>>, {data: BodyType<AdminLoginInput>}> = (props) => {
           const {data} = props ?? {};
 
           return  adminLogin(data,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -380,6 +442,8 @@ export const useAdminLogin = <TError = ErrorType<ErrorResponse>,
 export const getGetAdminSessionUrl = () => {
 
 
+
+
   return `/api/admin/session`
 }
 
@@ -399,6 +463,9 @@ export const getAdminSession = async ( options?: Parameters<typeof customFetch>[
 );}
 
 
+
+
+
 export const getGetAdminSessionQueryKey = () => {
     return [
     `/api/admin/session`
@@ -414,7 +481,11 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
   const queryKey =  queryOptions?.queryKey ?? getGetAdminSessionQueryKey();
 
 
+
     const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminSession>>> = ({ signal }) => getAdminSession({ signal, ...requestOptions });
+
+
+
 
 
    return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminSession>>, TError, TData> & { queryKey: QueryKey }
@@ -441,7 +512,14 @@ export function useGetAdminSession<TData = Awaited<ReturnType<typeof getAdminSes
 }
 
 
+
+
+
+
+
 export const getResetPasswordUrl = () => {
+
+
 
 
   return `/api/reset-password`
@@ -463,6 +541,9 @@ export const resetPassword = async (resetPasswordInput: ResetPasswordInput, opti
 );}
 
 
+
+
+
 export const getResetPasswordMutationOptions = <TError = ErrorType<ErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetPassword>>, TError,{data: BodyType<ResetPasswordInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof resetPassword>>, TError,{data: BodyType<ResetPasswordInput>}, TContext> => {
@@ -475,11 +556,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof resetPassword>>, {data: BodyType<ResetPasswordInput>}> = (props) => {
           const {data} = props ?? {};
 
           return  resetPassword(data,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -505,6 +592,8 @@ export const useResetPassword = <TError = ErrorType<ErrorResponse>,
 export const getGetProgressUrl = (name: string,) => {
 
 
+
+
   return `/api/progress/${name}`
 }
 
@@ -524,6 +613,9 @@ export const getProgress = async (name: string, options?: Parameters<typeof cust
 );}
 
 
+
+
+
 export const getGetProgressQueryKey = (name: string,) => {
     return [
     `/api/progress/${name}`
@@ -539,7 +631,11 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
   const queryKey =  queryOptions?.queryKey ?? getGetProgressQueryKey(name);
 
 
+
     const queryFn: QueryFunction<Awaited<ReturnType<typeof getProgress>>> = ({ signal }) => getProgress(name, { signal, ...requestOptions });
+
+
+
 
 
    return  { queryKey, queryFn, enabled: name !== null && name !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProgress>>, TError, TData> & { queryKey: QueryKey }
@@ -566,7 +662,14 @@ export function useGetProgress<TData = Awaited<ReturnType<typeof getProgress>>, 
 }
 
 
+
+
+
+
+
 export const getSaveProgressUrl = (name: string,) => {
+
+
 
 
   return `/api/progress/${name}`
@@ -589,6 +692,9 @@ export const saveProgress = async (name: string,
 );}
 
 
+
+
+
 export const getSaveProgressMutationOptions = <TError = ErrorType<ErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveProgress>>, TError,{name: string;data: BodyType<PlayerProgressInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof saveProgress>>, TError,{name: string;data: BodyType<PlayerProgressInput>}, TContext> => {
@@ -601,11 +707,17 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       : {mutation: { mutationKey, }, request: undefined};
 
 
+
+
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveProgress>>, {name: string;data: BodyType<PlayerProgressInput>}> = (props) => {
           const {name,data} = props ?? {};
 
           return  saveProgress(name,data,requestOptions)
         }
+
+
+
+
 
 
   return  { mutationFn, ...mutationOptions }}
@@ -631,14 +743,223 @@ export const useSaveProgress = <TError = ErrorType<ErrorResponse>,
 export const getVerifyAdminPasscodeUrl = () => {
 
 
+
+
   return `/api/admin/auth`
 }
+
+/**
+ * Validates the supplied passcode against the server-configured SESSION_SECRET. Returns 200 on success, 401 on wrong passcode, 503 if admin auth is not configured.
+ * @summary Verify admin passcode
+ */
+export const verifyAdminPasscode = async (adminAuthInput: AdminAuthInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminAuthResult> => {
+
+  return customFetch<AdminAuthResult>(getVerifyAdminPasscodeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(adminAuthInput)
+  }
+);}
+
+
+
+
+
+export const getVerifyAdminPasscodeMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyAdminPasscode>>, TError,{data: BodyType<AdminAuthInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof verifyAdminPasscode>>, TError,{data: BodyType<AdminAuthInput>}, TContext> => {
+
+const mutationKey = ['verifyAdminPasscode'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof verifyAdminPasscode>>, {data: BodyType<AdminAuthInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  verifyAdminPasscode(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type VerifyAdminPasscodeMutationResult = NonNullable<Awaited<ReturnType<typeof verifyAdminPasscode>>>
+    export type VerifyAdminPasscodeMutationBody = BodyType<AdminAuthInput>
+    export type VerifyAdminPasscodeMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Verify admin passcode
+ */
+export const useVerifyAdminPasscode = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyAdminPasscode>>, TError,{data: BodyType<AdminAuthInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof verifyAdminPasscode>>,
+        TError,
+        {data: BodyType<AdminAuthInput>},
+        TContext
+      > => {
+      return useMutation(getVerifyAdminPasscodeMutationOptions(options));
+    }
+
+export const getLoginWithResetCodeUrl = () => {
+
+
+
+
+  return `/api/login/reset`
+}
+
+/**
+ * Verifies the player-supplied reset token and atomically sets a new password hash. The token is consumed on success. Score and progress are preserved.
+ * @summary Redeem a one-time reset code to set a new password
+ */
+export const loginWithResetCode = async (loginResetInput: LoginResetInput, options?: Parameters<typeof customFetch>[1]): Promise<LoginResult> => {
+
+  return customFetch<LoginResult>(getLoginWithResetCodeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(loginResetInput)
+  }
+);}
+
+
+
+
+
+export const getLoginWithResetCodeMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof loginWithResetCode>>, TError,{data: BodyType<LoginResetInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof loginWithResetCode>>, TError,{data: BodyType<LoginResetInput>}, TContext> => {
+
+const mutationKey = ['loginWithResetCode'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof loginWithResetCode>>, {data: BodyType<LoginResetInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  loginWithResetCode(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LoginWithResetCodeMutationResult = NonNullable<Awaited<ReturnType<typeof loginWithResetCode>>>
+    export type LoginWithResetCodeMutationBody = BodyType<LoginResetInput>
+    export type LoginWithResetCodeMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Redeem a one-time reset code to set a new password
+ */
+export const useLoginWithResetCode = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof loginWithResetCode>>, TError,{data: BodyType<LoginResetInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof loginWithResetCode>>,
+        TError,
+        {data: BodyType<LoginResetInput>},
+        TContext
+      > => {
+      return useMutation(getLoginWithResetCodeMutationOptions(options));
+    }
+
 export const getResetPlayerPasswordUrl = (name: string,) => {
+
+
 
 
   return `/api/progress/${name}/password`
 }
+
+/**
+ * Generates a one-time reset token for the named player. The token must be shared with the player so they can reclaim their account via POST /login/reset. Score, won keys, and times are preserved. Requires the SESSION_SECRET as admin passcode.
+ * @summary Admin-initiated password reset
+ */
+export const resetPlayerPassword = async (name: string,
+    adminResetInput: AdminResetInput, options?: Parameters<typeof customFetch>[1]): Promise<PasswordResetResult> => {
+
+  return customFetch<PasswordResetResult>(getResetPlayerPasswordUrl(name),
+  {
+    ...options,
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(adminResetInput)
+  }
+);}
+
+
+
+
+
+export const getResetPlayerPasswordMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetPlayerPassword>>, TError,{name: string;data: BodyType<AdminResetInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resetPlayerPassword>>, TError,{name: string;data: BodyType<AdminResetInput>}, TContext> => {
+
+const mutationKey = ['resetPlayerPassword'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resetPlayerPassword>>, {name: string;data: BodyType<AdminResetInput>}> = (props) => {
+          const {name,data} = props ?? {};
+
+          return  resetPlayerPassword(name,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResetPlayerPasswordMutationResult = NonNullable<Awaited<ReturnType<typeof resetPlayerPassword>>>
+    export type ResetPlayerPasswordMutationBody = BodyType<AdminResetInput>
+    export type ResetPlayerPasswordMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Admin-initiated password reset
+ */
+export const useResetPlayerPassword = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetPlayerPassword>>, TError,{name: string;data: BodyType<AdminResetInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resetPlayerPassword>>,
+        TError,
+        {name: string;data: BodyType<AdminResetInput>},
+        TContext
+      > => {
+      return useMutation(getResetPlayerPasswordMutationOptions(options));
+    }
+
 export const getGetResultsSummaryUrl = () => {
+
+
 
 
   return `/api/results/summary`
@@ -660,6 +981,9 @@ export const getResultsSummary = async ( options?: Parameters<typeof customFetch
 );}
 
 
+
+
+
 export const getGetResultsSummaryQueryKey = () => {
     return [
     `/api/results/summary`
@@ -675,7 +999,11 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
   const queryKey =  queryOptions?.queryKey ?? getGetResultsSummaryQueryKey();
 
 
+
     const queryFn: QueryFunction<Awaited<ReturnType<typeof getResultsSummary>>> = ({ signal }) => getResultsSummary({ signal, ...requestOptions });
+
+
+
 
 
    return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getResultsSummary>>, TError, TData> & { queryKey: QueryKey }
@@ -702,177 +1030,8 @@ export function useGetResultsSummary<TData = Awaited<ReturnType<typeof getResult
 }
 
 
-    export type ResetPlayerPasswordMutationResult = NonNullable<Awaited<ReturnType<typeof resetPlayerPassword>>>
-
-    export type ResetPlayerPasswordMutationError = ErrorType<ErrorResponse>
-
-export const getResetPlayerPasswordMutationOptions = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetPlayerPassword>>, TError,{name: string;data: BodyType<AdminResetInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof resetPlayerPassword>>, TError,{name: string;data: BodyType<AdminResetInput>}, TContext> => {
-
-const mutationKey = ['resetPlayerPassword'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resetPlayerPassword>>, {name: string;data: BodyType<AdminResetInput>}> = (props) => {
-          const {name,data} = props ?? {};
-
-          return  resetPlayerPassword(name,data,requestOptions)
-        }
 
 
-  return  { mutationFn, ...mutationOptions }}
 
-/**
- * Generates a one-time reset token for the named player. The token must be shared with the player so they can reclaim their account via POST /login/reset. Score, won keys, and times are preserved. Requires the SESSION_SECRET as admin passcode.
- * @summary Admin-initiated password reset
- */
-export const resetPlayerPassword = async (name: string,
-    adminResetInput: AdminResetInput, options?: Parameters<typeof customFetch>[1]): Promise<PasswordResetResult> => {
-
-  return customFetch<PasswordResetResult>(getResetPlayerPasswordUrl(name),
-  {
-    ...options,
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(adminResetInput)
-  }
-);}
-
-    export type ResetPlayerPasswordMutationBody = BodyType<AdminResetInput>
-
-    /**
- * @summary Admin-initiated password reset
- */
-export const useResetPlayerPassword = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetPlayerPassword>>, TError,{name: string;data: BodyType<AdminResetInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof resetPlayerPassword>>,
-        TError,
-        {name: string;data: BodyType<AdminResetInput>},
-        TContext
-      > => {
-      return useMutation(getResetPlayerPasswordMutationOptions(options));
-    }
-
-    export type LoginWithResetCodeMutationError = ErrorType<ErrorResponse>
-
-    /**
- * @summary Redeem a one-time reset code to set a new password
- */
-export const useLoginWithResetCode = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof loginWithResetCode>>, TError,{data: BodyType<LoginResetInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof loginWithResetCode>>,
-        TError,
-        {data: BodyType<LoginResetInput>},
-        TContext
-      > => {
-      return useMutation(getLoginWithResetCodeMutationOptions(options));
-    }
-
-    export type VerifyAdminPasscodeMutationResult = NonNullable<Awaited<ReturnType<typeof verifyAdminPasscode>>>
-
-    export type LoginWithResetCodeMutationBody = BodyType<LoginResetInput>
-
-export const getLoginWithResetCodeUrl = () => {
-
-
-  return `/api/login/reset`
-}
-
-export const getLoginWithResetCodeMutationOptions = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof loginWithResetCode>>, TError,{data: BodyType<LoginResetInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof loginWithResetCode>>, TError,{data: BodyType<LoginResetInput>}, TContext> => {
-
-const mutationKey = ['loginWithResetCode'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof loginWithResetCode>>, {data: BodyType<LoginResetInput>}> = (props) => {
-          const {data} = props ?? {};
-
-          return  loginWithResetCode(data,requestOptions)
-        }
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type VerifyAdminPasscodeMutationBody = BodyType<AdminAuthInput>
-
-/**
- * Validates the supplied passcode against the server-configured SESSION_SECRET. Returns 200 on success, 401 on wrong passcode, 503 if admin auth is not configured.
- * @summary Verify admin passcode
- */
-export const verifyAdminPasscode = async (adminAuthInput: AdminAuthInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminAuthResult> => {
-
-  return customFetch<AdminAuthResult>(getVerifyAdminPasscodeUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(adminAuthInput)
-  }
-);}
-
-    /**
- * @summary Verify admin passcode
- */
-export const useVerifyAdminPasscode = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyAdminPasscode>>, TError,{data: BodyType<AdminAuthInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof verifyAdminPasscode>>,
-        TError,
-        {data: BodyType<AdminAuthInput>},
-        TContext
-      > => {
-      return useMutation(getVerifyAdminPasscodeMutationOptions(options));
-    }
-
-export const getVerifyAdminPasscodeMutationOptions = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyAdminPasscode>>, TError,{data: BodyType<AdminAuthInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof verifyAdminPasscode>>, TError,{data: BodyType<AdminAuthInput>}, TContext> => {
-
-const mutationKey = ['verifyAdminPasscode'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof verifyAdminPasscode>>, {data: BodyType<AdminAuthInput>}> = (props) => {
-          const {data} = props ?? {};
-
-          return  verifyAdminPasscode(data,requestOptions)
-        }
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type VerifyAdminPasscodeMutationError = ErrorType<ErrorResponse>
-
-/**
- * Verifies the player-supplied reset token and atomically sets a new password hash. The token is consumed on success. Score and progress are preserved.
- * @summary Redeem a one-time reset code to set a new password
- */
-export const loginWithResetCode = async (loginResetInput: LoginResetInput, options?: Parameters<typeof customFetch>[1]): Promise<LoginResult> => {
-
-  return customFetch<LoginResult>(getLoginWithResetCodeUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(loginResetInput)
-  }
-);}
-
-    export type LoginWithResetCodeMutationResult = NonNullable<Awaited<ReturnType<typeof loginWithResetCode>>>

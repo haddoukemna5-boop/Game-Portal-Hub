@@ -45,12 +45,14 @@ export const ListResultsResponse = zod.array(ListResultsResponseItem)
  */
 
 
+
 export const submitResultBodyScoreMin = 0;
+
+
 
 
 export const SubmitResultBody = zod.object({
   "playerName": zod.string().min(1).describe('The canonical player name (lowercased) used to look up the player record for authentication.'),
-  "passwordHash": zod.string().min(1).describe('SHA-256 hash of the player\'s password, used to verify caller identity.'),
   "firstName": zod.string().min(1),
   "lastName": zod.string().min(1),
   "score": zod.number().min(submitResultBodyScoreMin),
@@ -86,10 +88,12 @@ export const SubmitResultResponse = zod.object({
  */
 
 
+
+
 export const LoginBody = zod.object({
   "name": zod.string().min(1).describe('Unique username (login key, lowercase-normalised).'),
   "displayName": zod.string().optional().describe('Full display name shown on the leaderboard (optional on login, required on first registration).'),
-  "passwordHash": zod.string().min(1)
+  "password": zod.string().min(1)
 })
 
 export const LoginResponse = zod.object({
@@ -108,6 +112,8 @@ export const LoginResponse = zod.object({
  * Verifies an organizer username and password and starts an admin session.
  * @summary Sign in to the organizer dashboard
  */
+
+
 
 
 export const AdminLoginBody = zod.object({
@@ -135,9 +141,11 @@ export const GetAdminSessionResponse = zod.object({
  */
 
 
+
+
 export const ResetPasswordBody = zod.object({
   "name": zod.string().min(1).describe('Username of the account to reset.'),
-  "newPasswordHash": zod.string().min(1).describe('SHA-256 hash of the new password.')
+  "password": zod.string().min(1)
 })
 
 export const ResetPasswordResponse = zod.object({
@@ -175,9 +183,9 @@ export const SaveProgressParams = zod.object({
 export const saveProgressBodyScoreMin = 0;
 
 
+
 export const SaveProgressBody = zod.object({
   "name": zod.string().min(1),
-  "passwordHash": zod.string().min(1),
   "score": zod.number().min(saveProgressBodyScoreMin),
   "won": zod.array(zod.number()),
   "times": zod.record(zod.string(), zod.unknown()),
@@ -193,8 +201,47 @@ export const SaveProgressResponse = zod.object({
   "updatedAt": zod.coerce.date()
 })
 
+
+/**
+ * Validates the supplied passcode against the server-configured SESSION_SECRET. Returns 200 on success, 401 on wrong passcode, 503 if admin auth is not configured.
+ * @summary Verify admin passcode
+ */
+
+
+
 export const VerifyAdminPasscodeBody = zod.object({
   "passcode": zod.string().min(1).describe('The organizer passcode — validated against SESSION_SECRET on the server.')
+})
+
+export const VerifyAdminPasscodeResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * Verifies the player-supplied reset token and atomically sets a new password hash. The token is consumed on success. Score and progress are preserved.
+ * @summary Redeem a one-time reset code to set a new password
+ */
+
+
+
+
+
+export const LoginWithResetCodeBody = zod.object({
+  "name": zod.string().min(1),
+  "resetToken": zod.string().min(1).describe('The one-time reset token issued by the admin.'),
+  "password": zod.string().min(1)
+})
+
+export const LoginWithResetCodeResponse = zod.object({
+  "isNew": zod.boolean(),
+  "name": zod.string(),
+  "displayName": zod.string(),
+  "score": zod.number(),
+  "won": zod.array(zod.number()),
+  "times": zod.record(zod.string(), zod.unknown()),
+  "submitted": zod.boolean(),
+  "updatedAt": zod.coerce.date()
 })
 
 
@@ -205,6 +252,26 @@ export const VerifyAdminPasscodeBody = zod.object({
 export const ResetPlayerPasswordParams = zod.object({
   "name": zod.coerce.string()
 })
+
+
+
+
+export const ResetPlayerPasswordBody = zod.object({
+  "adminPasscode": zod.string().min(1).describe('The organizer passcode — validated against SESSION_SECRET on the server.')
+})
+
+export const ResetPlayerPasswordResponse = zod.object({
+  "name": zod.string(),
+  "score": zod.number(),
+  "won": zod.array(zod.number()),
+  "times": zod.record(zod.string(), zod.unknown()),
+  "submitted": zod.boolean(),
+  "updatedAt": zod.coerce.date(),
+  "resetToken": zod.string().describe('One-time reset token — share this with the player. Valid for 24 hours.'),
+  "expiresAt": zod.coerce.date().describe('ISO timestamp when the reset token expires.')
+}).describe('Returned when an admin-initiated password reset succeeds. Contains the one-time token to share with the player.')
+
+
 /**
  * Returns aggregate leaderboard metrics for the admin dashboard.
  * @summary Get leaderboard summary
@@ -219,37 +286,3 @@ export const GetResultsSummaryResponse = zod.object({
 })
 
 
-export const ResetPlayerPasswordResponse = zod.object({
-  "name": zod.string(),
-  "score": zod.number(),
-  "won": zod.array(zod.number()),
-  "times": zod.record(zod.string(), zod.unknown()),
-  "submitted": zod.boolean(),
-  "updatedAt": zod.coerce.date(),
-  "resetToken": zod.string().describe('One-time reset token — share this with the player. Valid for 24 hours.'),
-  "expiresAt": zod.coerce.date().describe('ISO timestamp when the reset token expires.')
-}).describe('Returned when an admin-initiated password reset succeeds. Contains the one-time token to share with the player.')
-
-export const ResetPlayerPasswordBody = zod.object({
-  "adminPasscode": zod.string().min(1).describe('The organizer passcode — validated against SESSION_SECRET on the server.')
-})
-
-export const LoginWithResetCodeBody = zod.object({
-  "name": zod.string().min(1),
-  "resetToken": zod.string().min(1).describe('The one-time reset token issued by the admin.'),
-  "passwordHash": zod.string().min(1).describe('SHA-256 hash of the player\'s new chosen password.')
-})
-
-export const VerifyAdminPasscodeResponse = zod.object({
-  "ok": zod.boolean()
-})
-
-export const LoginWithResetCodeResponse = zod.object({
-  "isNew": zod.boolean(),
-  "name": zod.string(),
-  "score": zod.number(),
-  "won": zod.array(zod.number()),
-  "times": zod.record(zod.string(), zod.unknown()),
-  "submitted": zod.boolean(),
-  "updatedAt": zod.coerce.date()
-})

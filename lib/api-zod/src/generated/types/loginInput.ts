@@ -15,5 +15,5 @@ export interface LoginInput {
   /** Full display name shown on the leaderboard (optional on login, required on first registration). */
   displayName?: string;
   /** @minLength 1 */
-  passwordHash: string;
+  password: string;
 }
