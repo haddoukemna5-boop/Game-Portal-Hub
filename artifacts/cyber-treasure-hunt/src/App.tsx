@@ -26,7 +26,7 @@ const CHALLENGES = [
   { id: 'c1', short: 'Phishing', title: 'The suspicious message', eyebrow: 'Challenge 1 · Inbox zero', accent: 'cyan' },
   { id: 'c2', short: 'QR Hunt', title: 'Two beacons, one true', eyebrow: 'Challenge 2 · Physical signals', accent: 'violet' },
   { id: 'c3', short: 'Data Class.', title: 'The classified vault room', eyebrow: 'Challenge 3 · Information handling', accent: 'pink' },
-  { id: 'c4', short: 'Deepfake', title: 'The voice that was not there', eyebrow: 'Challenge 4 · Synthetic media', accent: 'gold' },
+  { id: 'c4', short: 'Deepfake', title: 'The face that was not there', eyebrow: 'Challenge 4 · Synthetic media', accent: 'gold' },
 ] as const;
 
 type ChallengeId = (typeof CHALLENGES)[number]['id'];
@@ -52,8 +52,9 @@ const singleChoices: Record<string, Choice[]> = {
     { text: 'Neither — report both to Security first.', correct: false, why: 'That instinct is right in real life. For this challenge, one beacon is the genuine trail.' },
   ],
   c4q1: [
-    { text: 'It is real — that really is a senior spokesperson.', correct: false, why: 'A familiar-sounding voice proves nothing. Subtle pacing artefacts and the lack of official corroboration are the real tells.' },
-    { text: 'It is a deepfake — an AI-generated fabrication.', correct: true, why: 'Correct. The recording is fabricated, and no acquisition appears in any official channel.' },
+    { text: 'It is a real emergency — comply quickly to protect the company.', correct: false, why: 'Urgency is a classic manipulation tactic. Legitimate IT deployments go through ticketed, scheduled processes — never surprise video calls.' },
+    { text: 'This is almost certainly a deepfake video call scam.', correct: true, why: 'Correct. AI can clone someone\'s face and voice in real time. An unscheduled call demanding you install software is a major red flag regardless of who appears on screen.' },
+    { text: 'It is suspicious, but probably real since Teams is a secure platform.', correct: false, why: 'The platform is irrelevant — if an attacker compromises an account or spoofs a call, Teams provides no extra protection against what you see on screen.' },
   ],
 };
 
@@ -84,12 +85,12 @@ const multiChoices: Record<string, MultiChoice[]> = {
     { text: 'A document is C1 as long as it has no classification label.', correct: false },
   ],
   c4q3: [
-    { text: 'Subtle unnatural pacing, tone or audio artefacts.', correct: true },
-    { text: 'No matching announcement exists in official press releases or verified channels.', correct: true },
-    { text: 'It arrived through an unverifiable unofficial route.', correct: true },
-    { text: 'There is pressure to share or react before anyone official confirms it.', correct: true },
-    { text: 'The file is an MP3 rather than another audio format.', correct: false },
-    { text: 'The recording is fairly short.', correct: false },
+    { text: 'The call was completely unscheduled — no IT ticket, no prior notice.', correct: true },
+    { text: 'Extreme urgency: "install it now or the network will be breached in minutes".', correct: true },
+    { text: 'The link goes to an external domain, not an internal IT portal.', correct: true },
+    { text: 'Slight visual glitches — edge flickering around the face, unnatural blinking.', correct: true },
+    { text: 'The caller knows your first name.', correct: false },
+    { text: 'The call came through the official Teams app.', correct: false },
   ],
 };
 
@@ -211,80 +212,105 @@ function ChallengeThree({ answers, done, add }: { answers: Record<string, boolea
 }
 
 function ChallengeFour({ answers, done, add }: { answers: Record<string, boolean>; done: (k: string) => void; add: (n: number) => void }) {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const [callTime, setCallTime] = useState(0);
+  const [glitchVisible, setGlitchVisible] = useState(false);
 
   useEffect(() => {
-    return () => { window.speechSynthesis?.cancel(); };
+    const t = setInterval(() => setCallTime((s) => s + 1), 1000);
+    return () => clearInterval(t);
   }, []);
 
-  const toggleAudio = () => {
-    if (!window.speechSynthesis) return;
-    if (isPlaying) {
-      window.speechSynthesis.cancel();
-      setIsPlaying(false);
-      return;
-    }
-    const utt = new SpeechSynthesisUtterance(
-      'We are pleased to confirm the acquisition of Mercer Capital Partners for a sum of 2.1 billion dollars. ' +
-      'This represents a transformative milestone for our firm and our clients. ' +
-      'Further details will follow through the appropriate channels.'
-    );
-    utt.rate = 0.88;
-    utt.pitch = 0.95;
-    utt.onend = () => setIsPlaying(false);
-    utt.onerror = () => setIsPlaying(false);
-    utteranceRef.current = utt;
-    setIsPlaying(true);
-    window.speechSynthesis.speak(utt);
-  };
+  // Occasional face-edge glitch flicker
+  useEffect(() => {
+    const flicker = () => {
+      setGlitchVisible(true);
+      setTimeout(() => setGlitchVisible(false), 120 + Math.random() * 180);
+    };
+    const schedule = () => { setTimeout(() => { flicker(); schedule(); }, 4000 + Math.random() * 6000); };
+    schedule();
+  }, []);
+
+  const mins = String(Math.floor(callTime / 60)).padStart(2, '0');
+  const secs = String(callTime % 60).padStart(2, '0');
 
   return (
     <div className="space-y-8">
-      <div className="relative overflow-hidden rounded-2xl bg-[hsl(229_42%_11%)] p-6 text-[hsl(220_28%_95%)]">
-        <div className="scan-bar" />
-        <div className="mono mb-4 text-[10px] uppercase tracking-[.2em] text-[hsl(43_96%_65%)]">Audio attachment · acquisition-announcement.mp3</div>
-        <div className="flex items-center gap-4">
-          <button
-            type="button"
-            onClick={toggleAudio}
-            className={`grid size-12 shrink-0 place-items-center rounded-full transition-colors ${isPlaying ? 'bg-[hsl(43_96%_55%)] text-[hsl(229_42%_9%)]' : 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]'}`}
-            aria-label={isPlaying ? 'Stop audio' : 'Play audio sample'}
-            data-testid="button-play-audio"
-          >
-            {isPlaying ? <Square size={16} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
-          </button>
-          <div className="flex-1">
-            <div className="flex h-8 items-end gap-[3px]">
-              {Array.from({ length: 28 }).map((_, i) => {
-                const h = [4, 8, 14, 20, 26, 30, 22, 16, 28, 18, 10, 24, 32, 20, 14, 28, 22, 12, 18, 26, 16, 8, 20, 28, 14, 10, 24, 6][i] ?? 8;
-                return (
-                  <div
-                    key={i}
-                    className={`w-1 rounded-sm transition-all ${isPlaying ? 'bg-[hsl(var(--primary))]' : 'bg-[hsl(220_28%_95%/.3)]'}`}
-                    style={{
-                      height: `${h}px`,
-                      animation: isPlaying ? `waveBar 0.${6 + (i % 5)}s ease-in-out ${(i * 0.04).toFixed(2)}s infinite alternate` : 'none',
-                    }}
-                  />
-                );
-              })}
-            </div>
-            <div className="mono mt-2 flex justify-between text-[10px] text-[hsl(223_16%_70%)]">
-              <span>{isPlaying ? '▶ playing…' : '00:00'}</span>
-              <span>0:14</span>
-            </div>
+      {/* Mock Teams video call */}
+      <div className="relative overflow-hidden rounded-2xl bg-[hsl(229_42%_8%)] text-[hsl(220_28%_95%)]">
+        {/* Top bar */}
+        <div className="flex items-center justify-between px-4 py-2.5 bg-[hsl(229_42%_12%)]">
+          <div className="flex items-center gap-2">
+            <div className="grid size-5 place-items-center rounded bg-[hsl(230_80%_55%)]"><span className="text-[9px] font-bold text-white">T</span></div>
+            <span className="mono text-[10px] text-[hsl(220_28%_70%)]">Microsoft Teams</span>
+          </div>
+          <div className="mono flex items-center gap-2 text-[10px] text-[hsl(334_86%_76%)]">
+            <span className="inline-block size-1.5 rounded-full bg-[hsl(334_86%_65%)] animate-pulse" />
+            {mins}:{secs}
           </div>
         </div>
-        <p className="mt-4 text-sm text-[hsl(223_16%_76%)]">
-          {isPlaying
-            ? <><span className="text-[hsl(43_96%_65%)]">● Live</span> — listen carefully for unnatural pacing or tonal artefacts.</>
-            : '"We are pleased to confirm the acquisition…" Press play and listen for what the recording does not prove.'}
-        </p>
+
+        {/* Video area */}
+        <div className="relative flex items-center justify-center bg-[hsl(229_42%_6%)]" style={{ minHeight: 220 }}>
+          {/* Caller avatar / simulated video */}
+          <div className="relative flex flex-col items-center gap-3">
+            <div className="relative">
+              {/* Face silhouette with glitch overlay */}
+              <div className="grid size-24 place-items-center rounded-full bg-gradient-to-br from-[hsl(229_42%_22%)] to-[hsl(229_42%_14%)] ring-2 ring-[hsl(230_80%_55%/.4)]">
+                <span className="text-4xl select-none">👤</span>
+              </div>
+              {/* Glitch artefact — edge flicker */}
+              {glitchVisible && (
+                <div className="pointer-events-none absolute inset-0 rounded-full" style={{ boxShadow: '0 0 0 3px hsl(334 86% 65% / 0.7)', filter: 'blur(1px)' }} />
+              )}
+              {/* "HD" badge */}
+              <span className="mono absolute -bottom-1 -right-1 rounded bg-[hsl(229_42%_20%)] px-1 py-0.5 text-[8px] text-[hsl(220_28%_60%)]">HD</span>
+            </div>
+            <div className="text-center">
+              <div className="text-sm font-semibold">David Chen</div>
+              <div className="mono text-[10px] text-[hsl(220_28%_60%)]">IT Security Director</div>
+            </div>
+          </div>
+
+          {/* Small "you" pip */}
+          <div className="absolute bottom-3 right-3 flex size-16 items-center justify-center rounded-lg bg-[hsl(229_42%_18%)] ring-1 ring-[hsl(220_28%_30%)]">
+            <span className="text-2xl select-none">🧑‍💻</span>
+          </div>
+        </div>
+
+        {/* In-call chat message */}
+        <div className="border-t border-[hsl(220_28%_15%)] p-4 space-y-3">
+          <div className="mono text-[10px] uppercase tracking-[.15em] text-[hsl(43_96%_65%)]">Chat · In this call</div>
+          <div className="rounded-xl bg-[hsl(229_42%_14%)] p-3 text-sm">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="mono text-[10px] font-bold text-[hsl(230_80%_70%)]">David Chen</span>
+              <span className="mono text-[9px] text-[hsl(220_28%_45%)]">just now</span>
+            </div>
+            <p className="text-[hsl(220_28%_85%)] leading-6">Hey, we've detected a critical vulnerability on endpoints like yours. I need you to install this emergency patch <span className="font-mono text-[hsl(334_86%_76%)] underline cursor-pointer">it-emergency-patch.exe (secure-corp-tools.net)</span> right now — we have maybe 10 minutes before this spreads.</p>
+          </div>
+          <div className="rounded-xl bg-[hsl(229_42%_14%)] p-3 text-sm">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="mono text-[10px] font-bold text-[hsl(230_80%_70%)]">David Chen</span>
+              <span className="mono text-[9px] text-[hsl(220_28%_45%)]">just now</span>
+            </div>
+            <p className="text-[hsl(220_28%_85%)] leading-6">Don't log a ticket, there's no time. Just click the link and run it. I'm watching your screen now to confirm.</p>
+          </div>
+        </div>
+
+        {/* Subtle warning hint */}
+        <div className="border-t border-[hsl(220_28%_15%)] px-4 py-2.5 flex items-center gap-2">
+          <span className="inline-block size-1.5 rounded-full bg-[hsl(43_96%_55%)]" />
+          <span className="mono text-[10px] text-[hsl(220_28%_50%)]">Look carefully — something about this call is not right.</span>
+        </div>
       </div>
-      <SingleQuestion id="c4q1" title="Q1 · Is this recording real, or a deepfake?" choices={singleChoices.c4q1} points={5} onCorrect={add} completed={!!answers.c4q1} setCompleted={() => done('c4q1')} />
-      <SingleQuestion id="c4q2" title="Q2 · What is the right thing to do?" choices={[{ text: 'Forward it so colleagues know about the news.', correct: false, why: 'Sharing an unverified recording amplifies misinformation.' }, { text: 'Check official channels and report it to Security or Communications before treating it as real.', correct: true, why: 'Correct. A genuine acquisition would be confirmed through official channels — never a leaked clip.' }, { text: 'Ask the group chat if anyone can confirm it.', correct: false, why: 'That keeps the clip circulating without resolving anything.' }, { text: 'Do nothing and assume someone else will deal with it.', correct: false, why: 'Report what you saw so the organization can contain it quickly.' }]} points={10} onCorrect={add} completed={!!answers.c4q2} setCompleted={() => done('c4q2')} />
-      <MultiQuestion id="c4q3" title="Q3 · Which are genuine indicators of a deepfake?" choices={multiChoices.c4q3} onEarn={add} completed={!!answers.c4q3} setCompleted={() => done('c4q3')} />
+
+      <SingleQuestion id="c4q1" title="Q1 · You get this unscheduled Teams call from someone who looks like your IT Security Director. What is most likely happening?" choices={singleChoices.c4q1} points={5} onCorrect={add} completed={!!answers.c4q1} setCompleted={() => done('c4q1')} />
+      <SingleQuestion id="c4q2" title="Q2 · What should you do right now?" choices={[
+        { text: 'Click the link and install the patch — he looks and sounds real.', correct: false, why: 'Looking real is exactly what a deepfake is designed to achieve. Never install software based on an unscheduled video call alone.' },
+        { text: 'End the call and contact David Chen directly using his known number or by walking to his desk.', correct: true, why: 'Correct. Hanging up and verifying through a completely separate channel is the only safe move. A real emergency would still survive a 60-second verification.' },
+        { text: 'Reply in the Teams chat to ask if the link is safe.', correct: false, why: 'If the account is compromised, the attacker controls the chat too. Same channel, same threat.' },
+        { text: 'Ask a colleague sitting nearby whether they have heard of this vulnerability.', correct: false, why: 'A colleague cannot verify the call. End it and contact IT through a known, trusted route.' },
+      ]} points={10} onCorrect={add} completed={!!answers.c4q2} setCompleted={() => done('c4q2')} />
+      <MultiQuestion id="c4q3" title="Q3 · Which details in this call should raise your suspicion?" choices={multiChoices.c4q3} onEarn={add} completed={!!answers.c4q3} setCompleted={() => done('c4q3')} />
     </div>
   );
 }
