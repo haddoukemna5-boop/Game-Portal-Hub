@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cyber Treasure Hunt — Admin Leaderboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg1:#EEF3FF; --bg2:#FDF1FA;
+    --ink:#1B1436; --panel:#FFFFFF; --panel-2:#F6F5FF; --line:#E7E3FA;
+    --violet:#7C5CFC; --violet-deep:#5B37F0; --cyan:#13C4D6; --pink:#FF6FA3;
+    --lime:#20D07A; --gold:#FFB020; --gold-deep:#F09300; --coral:#FF5D6C;
+    --text:#20213B; --muted:#6F718F; --radius:18px;
+    --font-display:"Space Grotesk", system-ui, sans-serif;
+    --font-body:"Inter", system-ui, sans-serif;
+    --font-mono:"JetBrains Mono", ui-monospace, monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--bg1);color:var(--text);font-family:var(--font-body);line-height:1.5}
+  body{
+    min-height:100vh;
+    background:
+      radial-gradient(900px 500px at 90% -10%, rgba(124,92,252,.16), transparent 60%),
+      radial-gradient(800px 460px at -5% 10%, rgba(19,196,214,.14), transparent 55%),
+      linear-gradient(180deg, var(--bg1) 0%, var(--bg2) 100%);
+    background-attachment:fixed;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:32px 22px 80px}
+  .hidden{display:none !important}
+
+  /* ---------- login gate ---------- */
+  .gate-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+  .gate-card{max-width:400px;width:100%;background:#fff;border:1.5px solid var(--line);border-radius:var(--radius);padding:32px;text-align:center;box-shadow:0 14px 40px rgba(90,60,200,.1)}
+  .gate-card .emoji{font-size:2.2rem;margin-bottom:6px}
+  .gate-card h1{font-family:var(--font-display);font-weight:800;font-size:1.4rem;margin-bottom:8px}
+  .gate-card p{color:var(--muted);font-size:.9rem;margin-bottom:18px}
+  .gate-card input{width:100%;padding:12px 14px;border-radius:12px;border:2px solid var(--line);background:var(--panel-2);font-family:var(--font-mono);font-size:1rem;text-align:center;letter-spacing:.15em}
+  .gate-card input:focus{outline:none;border-color:var(--violet)}
+  .gate-error{color:var(--coral);font-size:.85rem;margin-top:10px;font-weight:600}
+
+  /* ---------- header ---------- */
+  header{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:20px}
+  .brand{font-family:var(--font-display);font-weight:800;font-size:1.35rem}
+  .brand span{background:linear-gradient(90deg,var(--violet),var(--pink));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .brand-sub{font-family:var(--font-mono);font-size:.75rem;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-top:2px}
+  .hdr-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+
+  button{font-family:var(--font-body);cursor:pointer;border:none;border-radius:12px;font-weight:700;font-size:.88rem}
+  .btn-gold{background:linear-gradient(135deg,var(--violet),var(--pink));color:#fff;padding:11px 20px;box-shadow:0 8px 20px rgba(124,92,252,.3)}
+  .btn-gold:hover{filter:brightness(1.05)}
+  .btn-ghost{background:#fff;color:var(--ink);border:2px solid var(--line);padding:10px 18px}
+  .btn-ghost:hover{border-color:var(--violet);color:var(--violet-deep)}
+  button:disabled{opacity:.55;cursor:default}
+
+  /* ---------- summary stats ---------- */
+  .stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:22px}
+  .stat-card{background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:16px 18px}
+  .stat-card b{display:block;font-family:var(--font-display);font-size:1.6rem;color:var(--violet-deep)}
+  .stat-card span{font-family:var(--font-mono);font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+
+  /* ---------- podium ---------- */
+  .podium{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:26px}
+  .podium-card{background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:18px 14px;text-align:center;position:relative}
+  .podium-card.p1{border-color:var(--gold);box-shadow:0 10px 26px rgba(255,176,32,.22);transform:translateY(-8px)}
+  .podium-card.p2{border-color:#C9CBE0}
+  .podium-card.p3{border-color:#E7B98C}
+  .podium-medal{font-size:1.8rem}
+  .podium-name{font-family:var(--font-display);font-weight:700;font-size:1rem;margin:6px 0 2px}
+  .podium-score{font-family:var(--font-mono);color:var(--violet-deep);font-weight:700}
+  @media (max-width:640px){ .podium{grid-template-columns:1fr} .podium-card.p1{transform:none} }
+
+  /* ---------- controls ---------- */
+  .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+  .controls input[type=search]{flex:1;min-width:180px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--line);background:#fff;font-family:var(--font-body);font-size:.9rem}
+  .controls input[type=search]:focus{outline:none;border-color:var(--violet)}
+  .muted{color:var(--muted);font-size:.85rem}
+
+  /* ---------- table ---------- */
+  .table-wrap{background:#fff;border:1.5px solid var(--line);border-radius:var(--radius);overflow:auto;box-shadow:0 14px 40px rgba(90,60,200,.06)}
+  table{width:100%;border-collapse:collapse;font-size:.86rem;min-width:760px}
+  thead th{position:sticky;top:0;background:var(--panel-2);text-align:left;padding:12px 14px;font-family:var(--font-mono);font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:1.5px solid var(--line);cursor:pointer;white-space:nowrap;user-select:none}
+  thead th:hover{color:var(--violet-deep)}
+  thead th.sorted::after{content:' ▾';color:var(--violet)}
+  thead th.sorted.asc::after{content:' ▴'}
+  tbody td{padding:11px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:var(--panel-2)}
+  .rank-cell{font-family:var(--font-mono);color:var(--muted)}
+  .name-cell{font-weight:700}
+  .score-cell{font-family:var(--font-mono);color:var(--violet-deep);font-weight:700}
+  .badge-rank{display:inline-block;background:#FFF3DE;color:#9A6A00;font-size:.72rem;font-weight:700;padding:3px 9px;border-radius:999px}
+  .empty-state{padding:50px 20px;text-align:center;color:var(--muted)}
+  .empty-state .big{font-size:2.2rem;margin-bottom:8px}
+
+  .footnote{font-size:.78rem;color:var(--muted);margin-top:16px;text-align:center}
+</style>
+</head>
+<body>
+
+<!-- ================= PASSCODE GATE ================= -->
+<div id="gate" class="gate-wrap">
+  <div class="gate-card">
+    <div class="emoji">🔑</div>
+    <h1>Admin access</h1>
+    <p>Enter the admin passcode to view Cyber Treasure Hunt results.</p>
+    <input id="passcodeInput" type="password" placeholder="Passcode" autocomplete="off" />
+    <div id="gateError" class="gate-error hidden">Incorrect passcode.</div>
+    <div style="margin-top:16px"><button class="btn-gold" id="gateBtn" style="width:100%">Unlock leaderboard</button></div>
+  </div>
+</div>
+
+<!-- ================= DASHBOARD ================= -->
+<div id="dashboard" class="wrap hidden">
+  <header>
+    <div>
+      <div class="brand">⚡ Cyber <span>Treasure Hunt</span></div>
+      <div class="brand-sub">Admin leaderboard</div>
+    </div>
+    <div class="hdr-actions">
+      <a href="index.html" class="btn-ghost" style="text-decoration:none;display:inline-flex;align-items:center;padding:10px 18px">← Back to the hunt</a>
+      <span class="muted" id="lastUpdated"></span>
+      <button class="btn-ghost" id="refreshBtn">↻ Refresh</button>
+      <button class="btn-ghost" id="exportBtn">⬇ Export Excel</button>
+    </div>
+  </header>
+
+  <div class="stats-row" id="statsRow">
+    <div class="stat-card"><b id="statCount">—</b><span>Participants</span></div>
+    <div class="stat-card"><b id="statAvgScore">—</b><span>Average score</span></div>
+    <div class="stat-card"><b id="statTopScore">—</b><span>Top score</span></div>
+    <div class="stat-card"><b id="statAvgTime">—</b><span>Average time</span></div>
+    <div class="stat-card"><b id="statFastest">—</b><span>Fastest completion</span></div>
+  </div>
+
+  <div class="podium hidden" id="podium"></div>
+
+  <div class="controls">
+    <input type="search" id="searchBox" placeholder="Search by name…" />
+    <label style="display:flex;align-items:center;gap:6px;font-size:.85rem;color:var(--muted);cursor:pointer">
+      <input type="checkbox" id="showTestToggle" /> Show test runs (from ?preview)
+    </label>
+    <span class="muted" id="shownCount"></span>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th data-key="pos">#</th>
+          <th data-key="name">Name</th>
+          <th data-key="score" class="sorted">Score</th>
+          <th data-key="rank">Rank</th>
+          <th data-key="timeC1">Ch.1</th>
+          <th data-key="timeC2">Ch.2</th>
+          <th data-key="timeC3">Ch.3</th>
+          <th data-key="timeC4">Ch.4</th>
+          <th data-key="totalTime">Total time</th>
+          <th data-key="completed">Completed</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div id="emptyState" class="empty-state hidden">
+      <div class="big">📭</div>
+      No results yet — they'll appear here as staff complete the hunt.
+    </div>
+  </div>
+
+  <div class="footnote">Ranking rule: highest score first; ties are broken by whoever finished fastest (lowest total time). This applies to the default table order and to the exported Excel file. Data comes from your Supabase results table — nothing is stored in the browser except the admin passcode unlock for this session.</div>
+</div>
+
+<script>
+/* =====================================================================
+   PASTE your Supabase project details below (Project Settings → API) —
+   same values as in the game's index.html.
+   ===================================================================== */
+const SUPABASE_URL = "https://eniaehtgzptmgzpsqrkp.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_fJT7KBFI5VnXhou8Qwz0PA_QQSlX9AZ";
+
+/* Simple passcode gate. NOTE: this is a deterrent, not real security —
+   the passcode lives in this file's source and anyone who views source
+   can read it. Don't rely on this alone for sensitive data; keep the
+   admin page's URL unlisted and consider tightening the Supabase
+   table's own read policy if that matters for you. */
+const ADMIN_PASSCODE = "changeme123";
+
+let rawData = [];
+let sortKey = 'score';
+let sortDir = 'desc';
+
+function formatDuration(sec){
+  if(sec == null || isNaN(sec)) return '—';
+  const m = Math.floor(sec/60), s = Math.round(sec%60);
+  return m + ':' + String(s).padStart(2,'0');
+}
+function formatDate(iso){
+  if(!iso) return '—';
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString(undefined,{month:'short',day:'numeric'}) + ' ' +
+         d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
+}
+
+/* ---------- gate ---------- */
+function tryUnlock(){
+  const val = document.getElementById('passcodeInput').value;
+  const err = document.getElementById('gateError');
+  if(val === ADMIN_PASSCODE){
+    err.classList.add('hidden');
+    document.getElementById('gate').classList.add('hidden');
+    document.getElementById('dashboard').classList.remove('hidden');
+    try{ sessionStorage.setItem('cth_admin_ok','1'); }catch(e){}
+    loadData();
+  } else {
+    err.classList.remove('hidden');
+  }
+}
+document.getElementById('gateBtn').onclick = tryUnlock;
+document.getElementById('passcodeInput').addEventListener('keydown', e=>{ if(e.key==='Enter') tryUnlock(); });
+(function(){
+  try{
+    if(sessionStorage.getItem('cth_admin_ok') === '1'){
+      document.getElementById('gate').classList.add('hidden');
+      document.getElementById('dashboard').classList.remove('hidden');
+      loadData();
+    }
+  }catch(e){}
+})();
+
+/* ---------- data loading ---------- */
+async function loadData(){
+  const tbody = document.getElementById('tbody');
+  const refreshBtn = document.getElementById('refreshBtn');
+  refreshBtn.disabled = true;
+  refreshBtn.textContent = '↻ Loading…';
+  if(!SUPABASE_URL || SUPABASE_URL.indexOf('PASTE_YOUR') === 0 || !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.indexOf('PASTE_YOUR') === 0){
+    tbody.innerHTML = '';
+    document.getElementById('emptyState').classList.remove('hidden');
+    document.getElementById('emptyState').innerHTML = '<div class="big">⚙️</div>Set <code>SUPABASE_URL</code> and <code>SUPABASE_ANON_KEY</code> in this file.';
+    refreshBtn.disabled = false; refreshBtn.textContent = '↻ Refresh';
+    return;
+  }
+  try{
+    /* Sort server-side too: most points first, then fastest total time.
+       limit=2000 avoids PostgREST's default 1000-row cap so all
+       300+ participants come back in one request. */
+    const res = await fetch(SUPABASE_URL + '/rest/v1/results?select=*&order=score.desc,total_time.asc.nullslast&limit=2000', {
+      method: 'GET',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+      }
+    });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    rawData = await res.json();
+    document.getElementById('lastUpdated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    render();
+  }catch(e){
+    tbody.innerHTML = '';
+    document.getElementById('emptyState').classList.remove('hidden');
+    document.getElementById('emptyState').innerHTML = '<div class="big">⚠️</div>Couldn\u2019t load results. Check your Supabase URL/key and that the "Allow public read" policy exists on the table.';
+  }
+  refreshBtn.disabled = false;
+  refreshBtn.textContent = '↻ Refresh';
+}
+document.getElementById('refreshBtn').onclick = loadData;
+
+/* ---------- normalize + render ---------- */
+function normalize(item){
+  return {
+    name: [item.first_name, item.last_name].filter(Boolean).join(' ') || 'Unknown',
+    score: Number(item.score ?? 0),
+    rank: item.rank || '—',
+    timeC1: item.time_c1 ?? null,
+    timeC2: item.time_c2 ?? null,
+    timeC3: item.time_c3 ?? null,
+    timeC4: item.time_c4 ?? null,
+    totalTime: item.total_time ?? null,
+    completed: item.created_at || null,
+    isTest: !!item.is_test
+  };
+}
+
+/* Competition ranking: highest score wins; ties broken by fastest
+   total time (nulls/unknown times sort last). Used for the default
+   table order and for the Excel export, regardless of which column
+   header the admin has clicked to browse by. */
+function competitionSort(rows){
+  return rows.slice().sort((a,b)=>{
+    if(b.score !== a.score) return b.score - a.score;
+    const at = a.totalTime == null ? Infinity : a.totalTime;
+    const bt = b.totalTime == null ? Infinity : b.totalTime;
+    return at - bt;
+  });
+}
+
+function render(){
+  const search = document.getElementById('searchBox').value.trim().toLowerCase();
+  const showTest = document.getElementById('showTestToggle').checked;
+  let rows = rawData.map(normalize)
+    .filter(r => r.name.toLowerCase().includes(search))
+    .filter(r => showTest || !r.isTest);
+
+  if(sortKey === 'score' && sortDir === 'desc'){
+    // Default view: full competition ranking (score desc, time asc tiebreak).
+    rows = competitionSort(rows);
+  } else {
+    rows.sort((a,b)=>{
+      let av = a[sortKey], bv = b[sortKey];
+      if(sortKey === 'name' || sortKey === 'rank'){ av = (av||'').toLowerCase(); bv = (bv||'').toLowerCase(); }
+      if(sortKey === 'completed'){ av = av ? new Date(av).getTime() : 0; bv = bv ? new Date(bv).getTime() : 0; }
+      if(av == null) av = sortDir === 'asc' ? Infinity : -Infinity;
+      if(bv == null) bv = sortDir === 'asc' ? Infinity : -Infinity;
+      if(av < bv) return sortDir === 'asc' ? -1 : 1;
+      if(av > bv) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }
+
+  document.getElementById('shownCount').textContent = rows.length + ' of ' + rawData.length + ' shown';
+
+  // stats (computed from full unfiltered dataset, respecting the test-run toggle)
+  const all = rawData.map(normalize).filter(r => showTest || !r.isTest);
+  document.getElementById('statCount').textContent = all.length;
+  document.getElementById('statAvgScore').textContent = all.length ? Math.round(all.reduce((s,r)=>s+r.score,0)/all.length) : '—';
+  document.getElementById('statTopScore').textContent = all.length ? Math.max(...all.map(r=>r.score)) : '—';
+  const withTotal = all.filter(r=>r.totalTime != null);
+  document.getElementById('statAvgTime').textContent = withTotal.length ? formatDuration(withTotal.reduce((s,r)=>s+r.totalTime,0)/withTotal.length) : '—';
+  document.getElementById('statFastest').textContent = withTotal.length ? formatDuration(Math.min(...withTotal.map(r=>r.totalTime))) : '—';
+
+  // podium (top 3 by competition ranking, from full dataset)
+  const podiumEl = document.getElementById('podium');
+  const top3 = competitionSort(all).slice(0,3);
+  if(top3.length >= 1){
+    podiumEl.classList.remove('hidden');
+    const medals = ['🥇','🥈','🥉'];
+    const classes = ['p1','p2','p3'];
+    podiumEl.innerHTML = top3.map((r,i)=>
+      '<div class="podium-card '+classes[i]+'"><div class="podium-medal">'+medals[i]+'</div>'+
+      '<div class="podium-name">'+r.name+'</div>'+
+      '<div class="podium-score">'+r.score+' pts</div>'+
+      '<div class="muted" style="font-size:.78rem;margin-top:2px">'+formatDuration(r.totalTime)+'</div></div>'
+    ).join('');
+  } else {
+    podiumEl.classList.add('hidden');
+  }
+
+  // table
+  const tbody = document.getElementById('tbody');
+  const emptyState = document.getElementById('emptyState');
+  if(rows.length === 0){
+    tbody.innerHTML = '';
+    emptyState.classList.remove('hidden');
+    emptyState.innerHTML = '<div class="big">📭</div>No results match.';
+  } else {
+    emptyState.classList.add('hidden');
+    tbody.innerHTML = rows.map((r,i)=>
+      '<tr>'+
+      '<td class="rank-cell">'+(i+1)+'</td>'+
+      '<td class="name-cell">'+r.name+(r.isTest ? ' <span class="badge-rank" style="background:#FFE1EE;color:#B0245A">TEST</span>' : '')+'</td>'+
+      '<td class="score-cell">'+r.score+'</td>'+
+      '<td><span class="badge-rank">'+r.rank+'</span></td>'+
+      '<td>'+formatDuration(r.timeC1)+'</td>'+
+      '<td>'+formatDuration(r.timeC2)+'</td>'+
+      '<td>'+formatDuration(r.timeC3)+'</td>'+
+      '<td>'+formatDuration(r.timeC4)+'</td>'+
+      '<td>'+formatDuration(r.totalTime)+'</td>'+
+      '<td>'+formatDate(r.completed)+'</td>'+
+      '</tr>'
+    ).join('');
+  }
+}
+document.getElementById('searchBox').addEventListener('input', render);
+document.getElementById('showTestToggle').addEventListener('change', render);
+
+/* ---------- sorting (clicking a column header) ---------- */
+document.querySelectorAll('thead th').forEach(th=>{
+  th.addEventListener('click', ()=>{
+    const key = th.dataset.key;
+    if(key === 'pos') return;
+    if(sortKey === key){ sortDir = sortDir === 'asc' ? 'desc' : 'asc'; }
+    else { sortKey = key; sortDir = ['name','rank','completed'].includes(key) ? 'asc' : 'desc'; }
+    document.querySelectorAll('thead th').forEach(t=>t.classList.remove('sorted','asc'));
+    th.classList.add('sorted');
+    if(sortDir === 'asc') th.classList.add('asc');
+    render();
+  });
+});
+
+/* ---------- Export as a real Excel (.xls) file — no libraries needed ----------
+   Excel natively opens an HTML table saved with an .xls extension and the
+   correct MIME type, so this works fully offline with zero external
+   dependencies or accounts — safe for GitHub Pages hosting. */
+document.getElementById('exportBtn').onclick = function(){
+  const showTest = document.getElementById('showTestToggle').checked;
+  const rows = competitionSort(rawData.map(normalize).filter(r => showTest || !r.isTest));
+
+  const esc = s => String(s==null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const headers = ['#','Name','Score','Rank','Ch.1 (s)','Ch.2 (s)','Ch.3 (s)','Ch.4 (s)','Total time (s)','Completed'];
+
+  let table = '<table border="1"><thead><tr>' +
+    headers.map(h=>'<th>'+esc(h)+'</th>').join('') + '</tr></thead><tbody>';
+
+  rows.forEach((r,i)=>{
+    const cells = [
+      i+1, r.name, r.score, r.rank,
+      r.timeC1 ?? '', r.timeC2 ?? '', r.timeC3 ?? '', r.timeC4 ?? '',
+      r.totalTime ?? '',
+      r.completed ? new Date(r.completed).toLocaleString() : ''
+    ];
+    table += '<tr>' + cells.map(c=>'<td>'+esc(c)+'</td>').join('') + '</tr>';
+  });
+  table += '</tbody></table>';
+
+  const excelHeader =
+    '<html xmlns:o="urn:schemas-microsoft-com:office:office" ' +
+    'xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">' +
+    '<head><meta charset="UTF-8"><!--[if gte mso 9]><xml>' +
+    '<x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>' +
+    '<x:Name>Leaderboard</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>' +
+    '</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body>';
+  const excelFooter = '</body></html>';
+
+  const blob = new Blob([excelHeader + table + excelFooter], {type:'application/vnd.ms-excel'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'cyber-treasure-hunt-results.xls';
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+</script>
+</body>
+</html>

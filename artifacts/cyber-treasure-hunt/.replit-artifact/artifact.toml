@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Cyber Treasure Hunt"
+description = "A playable cyber-awareness game with four progressive challenges, saved player progress, result submission, and an admin leaderboard for reviewing participants."
+version = "1.0.0"
+id = "artifacts/cyber-treasure-hunt"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19532
+
+[services.development]
+run = "pnpm --filter @workspace/cyber-treasure-hunt run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/cyber-treasure-hunt", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/cyber-treasure-hunt/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19532"
+BASE_PATH = "/"

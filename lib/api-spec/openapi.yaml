@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: results
+    description: Cyber Treasure Hunt participant results
 paths:
   /healthz:
     get:
@@ -24,6 +26,58 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /results:
+    get:
+      operationId: listResults
+      tags: [results]
+      summary: List leaderboard results
+      description: Returns participant results ordered by competition score.
+      responses:
+        "200":
+          description: Leaderboard results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GameResult"
+    post:
+      operationId: submitResult
+      tags: [results]
+      summary: Submit or update a participant result
+      description: Upserts a participant's latest completed game result.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GameResultInput"
+      responses:
+        "200":
+          description: Saved participant result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GameResult"
+        "400":
+          description: Invalid result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /results/summary:
+    get:
+      operationId: getResultsSummary
+      tags: [results]
+      summary: Get leaderboard summary
+      description: Returns aggregate leaderboard metrics for the admin dashboard.
+      responses:
+        "200":
+          description: Leaderboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResultsSummary"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +87,113 @@ components:
           type: string
       required:
         - status
+    GameResult:
+      type: object
+      properties:
+        id:
+          type: number
+        firstName:
+          type: string
+        lastName:
+          type: string
+        score:
+          type: number
+        rank:
+          type: string
+        timeC1:
+          type: ["number", "null"]
+        timeC2:
+          type: ["number", "null"]
+        timeC3:
+          type: ["number", "null"]
+        timeC4:
+          type: ["number", "null"]
+        totalTime:
+          type: ["number", "null"]
+        isTest:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - firstName
+        - lastName
+        - score
+        - rank
+        - timeC1
+        - timeC2
+        - timeC3
+        - timeC4
+        - totalTime
+        - isTest
+        - createdAt
+    GameResultInput:
+      type: object
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+        lastName:
+          type: string
+          minLength: 1
+        score:
+          type: number
+          minimum: 0
+        rank:
+          type: string
+          minLength: 1
+        timeC1:
+          type: ["number", "null"]
+        timeC2:
+          type: ["number", "null"]
+        timeC3:
+          type: ["number", "null"]
+        timeC4:
+          type: ["number", "null"]
+        totalTime:
+          type: ["number", "null"]
+        isTest:
+          type: boolean
+      required:
+        - firstName
+        - lastName
+        - score
+        - rank
+        - timeC1
+        - timeC2
+        - timeC3
+        - timeC4
+        - totalTime
+        - isTest
+    ResultsSummary:
+      type: object
+      properties:
+        participantCount:
+          type: number
+        averageScore:
+          type: number
+        topScore:
+          type: ["number", "null"]
+        averageTime:
+          type: ["number", "null"]
+        fastestTime:
+          type: ["number", "null"]
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - participantCount
+        - averageScore
+        - topScore
+        - averageTime
+        - fastestTime
+        - updatedAt
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
 
