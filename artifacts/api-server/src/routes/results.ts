@@ -7,6 +7,7 @@ import {
   SubmitResultBody,
   SubmitResultResponse,
 } from "@workspace/api-zod";
+import { requireAdmin } from "./admin";
 
 const router: IRouter = Router();
 
@@ -26,14 +27,26 @@ function deriveDisplayName(canonicalName: string): { firstName: string; lastName
   return { firstName, lastName };
 }
 
-router.get("/results", async (req, res): Promise<void> => {
+router.get("/results", requireAdmin, async (req, res): Promise<void> => {
   req.log.info("Fetching leaderboard results");
+  res.setHeader("Cache-Control", "no-store");
   const rows = await db
-    .select()
+    .select({ result: gameResultsTable, displayName: playerProgressTable.displayName })
     .from(gameResultsTable)
+    .leftJoin(playerProgressTable, eq(gameResultsTable.playerName, playerProgressTable.name))
     .orderBy(desc(gameResultsTable.score), asc(gameResultsTable.totalTime));
 
-  res.json(ListResultsResponse.parse(rows));
+  const results = rows.map(({ result, displayName }) => {
+    if (!displayName) return result;
+    const parts = displayName.trim().split(/\s+/);
+    return {
+      ...result,
+      firstName: cap(parts[0] ?? result.firstName),
+      lastName: parts.length > 1 ? parts.slice(1).map(cap).join(" ") : "Operator",
+    };
+  });
+
+  res.json(ListResultsResponse.parse(results));
 });
 
 router.post("/results", async (req, res): Promise<void> => {
@@ -49,7 +62,7 @@ router.post("/results", async (req, res): Promise<void> => {
 
   // Verify the caller is a registered player with a stored password
   const [player] = await db
-    .select({ passwordHash: playerProgressTable.passwordHash, name: playerProgressTable.name })
+    .select({ passwordHash: playerProgressTable.passwordHash, name: playerProgressTable.name, displayName: playerProgressTable.displayName })
     .from(playerProgressTable)
     .where(eq(playerProgressTable.name, playerName))
     .limit(1);
@@ -73,7 +86,7 @@ router.post("/results", async (req, res): Promise<void> => {
   // Derive display name from the authenticated player's canonical stored name.
   // The client-supplied firstName/lastName are ignored; playerName is the immutable
   // ownership key so no participant can overwrite another's leaderboard entry.
-  const { firstName, lastName } = deriveDisplayName(player.name);
+  const { firstName, lastName } = deriveDisplayName(player.displayName || player.name);
 
   const [result] = await db
     .insert(gameResultsTable)
@@ -110,8 +123,9 @@ router.post("/results", async (req, res): Promise<void> => {
   res.json(SubmitResultResponse.parse(result));
 });
 
-router.get("/results/summary", async (req, res): Promise<void> => {
+router.get("/results/summary", requireAdmin, async (req, res): Promise<void> => {
   req.log.info("Fetching leaderboard summary");
+  res.setHeader("Cache-Control", "no-store");
   const rows = await db
     .select()
     .from(gameResultsTable)

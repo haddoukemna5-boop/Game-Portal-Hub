@@ -109,6 +109,24 @@ export const LoginResponse = zod.object({
 
 
 /**
+ * Verifies an organizer username and password and starts an admin session.
+ * @summary Sign in to the organizer dashboard
+ */
+
+
+
+
+export const AdminLoginBody = zod.object({
+  "username": zod.string().min(1),
+  "password": zod.string().min(1)
+})
+
+export const AdminLoginResponse = zod.object({
+  "authenticated": zod.boolean()
+})
+
+
+/**
  * Allows a player to set a new password using their username alone. No second factor — appropriate for an internal game.
  * @summary Reset a player's password by username
  */

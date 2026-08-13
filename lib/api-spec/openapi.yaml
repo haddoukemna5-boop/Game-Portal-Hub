@@ -98,6 +98,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /admin/login:
+    post:
+      operationId: adminLogin
+      tags: [progress]
+      summary: Sign in to the organizer dashboard
+      description: Verifies an organizer username and password and starts an admin session.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminLoginInput"
+      responses:
+        "200":
+          description: Admin login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminLoginResult"
+        "400":
+          description: Missing fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Invalid admin credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /reset-password:
     post:
       operationId: resetPassword
@@ -373,6 +404,25 @@ components:
         - times
         - submitted
         - updatedAt
+    AdminLoginInput:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          minLength: 1
+      required:
+        - username
+        - password
+    AdminLoginResult:
+      type: object
+      properties:
+        authenticated:
+          type: boolean
+      required:
+        - authenticated
     ResetPasswordInput:
       type: object
       properties:

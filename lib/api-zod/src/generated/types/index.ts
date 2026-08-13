@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './adminLoginInput';
+export * from './adminLoginResult';
 export * from './errorResponse';
 export * from './gameResult';
 export * from './gameResultInput';

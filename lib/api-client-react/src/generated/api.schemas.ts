@@ -102,6 +102,17 @@ export interface LoginResult {
   updatedAt: string;
 }
 
+export interface AdminLoginInput {
+  /** @minLength 1 */
+  username: string;
+  /** @minLength 1 */
+  password: string;
+}
+
+export interface AdminLoginResult {
+  authenticated: boolean;
+}
+
 export interface ResetPasswordInput {
   /**
      * Username of the account to reset.
