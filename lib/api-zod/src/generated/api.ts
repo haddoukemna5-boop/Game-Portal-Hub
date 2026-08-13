@@ -127,6 +127,15 @@ export const AdminLoginResponse = zod.object({
 
 
 /**
+ * Confirms that the current browser has an active organizer session.
+ * @summary Check the organizer session
+ */
+export const GetAdminSessionResponse = zod.object({
+  "authenticated": zod.boolean()
+})
+
+
+/**
  * Allows a player to set a new password using their username alone. No second factor — appropriate for an internal game.
  * @summary Reset a player's password by username
  */

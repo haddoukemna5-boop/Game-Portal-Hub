@@ -113,6 +113,10 @@ export interface AdminLoginResult {
   authenticated: boolean;
 }
 
+export interface AdminSessionResult {
+  authenticated: boolean;
+}
+
 export interface ResetPasswordInput {
   /**
      * Username of the account to reset.

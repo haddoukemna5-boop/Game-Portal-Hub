@@ -129,6 +129,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /admin/session:
+    get:
+      operationId: getAdminSession
+      tags: [progress]
+      summary: Check the organizer session
+      description: Confirms that the current browser has an active organizer session.
+      responses:
+        "200":
+          description: Admin session is active
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSessionResult"
+        "401":
+          description: Admin authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /reset-password:
     post:
       operationId: resetPassword
@@ -417,6 +436,13 @@ components:
         - username
         - password
     AdminLoginResult:
+      type: object
+      properties:
+        authenticated:
+          type: boolean
+      required:
+        - authenticated
+    AdminSessionResult:
       type: object
       properties:
         authenticated:

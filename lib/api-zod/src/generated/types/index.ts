@@ -8,6 +8,7 @@
 
 export * from './adminLoginInput';
 export * from './adminLoginResult';
+export * from './adminSessionResult';
 export * from './errorResponse';
 export * from './gameResult';
 export * from './gameResultInput';

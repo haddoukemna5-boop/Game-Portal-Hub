@@ -7,8 +7,8 @@ import {
   Shield, Sparkles, Square, Terminal, Trophy, Unlock, X, Zap,
 } from 'lucide-react';
 import {
-  getGetResultsSummaryQueryKey, getHealthCheckQueryKey, getListResultsQueryKey,
-  useAdminLogin, useGetResultsSummary, useHealthCheck, useListResults, useLogin, useResetPassword, useSaveProgress, useSubmitResult,
+  getGetAdminSessionQueryKey, getGetResultsSummaryQueryKey, getHealthCheckQueryKey, getListResultsQueryKey,
+  useAdminLogin, useGetAdminSession, useGetResultsSummary, useHealthCheck, useListResults, useLogin, useResetPassword, useSaveProgress, useSubmitResult,
 } from '@workspace/api-client-react';
 import type { GameResultInput } from '@workspace/api-client-react';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -19,6 +19,8 @@ import './index.css';
 
 const queryClient = new QueryClient();
 const PREVIEW = new URLSearchParams(window.location.search).has('preview');
+const ADMIN_TEST = new URLSearchParams(window.location.search).has('adminTest');
+const TEST_MODE = PREVIEW || ADMIN_TEST;
 const PROGRAMME_START = new Date('2026-10-05T00:00:00');
 const WEEK = 7 * 24 * 60 * 60 * 1000;
 const KEY_LETTERS = ['U', 'L', 'V', 'N'];
@@ -101,7 +103,7 @@ function formatDuration(seconds: number | null | undefined) {
 function releaseDate(id: ChallengeId) {
   return new Date(PROGRAMME_START.getTime() + CHALLENGES.findIndex((c) => c.id === id) * WEEK);
 }
-function isUnlocked(id: ChallengeId) { return PREVIEW || Date.now() >= releaseDate(id).getTime(); }
+function isUnlocked(id: ChallengeId) { return TEST_MODE || Date.now() >= releaseDate(id).getTime(); }
 function rankFor(score: number) {
   return score >= 90 ? 'Vault Master' : score >= 70 ? 'Master Navigator' : score >= 50 ? 'Deckhand Detective' : 'Cabin Recruit';
 }
@@ -110,6 +112,9 @@ function readProgress(): Progress {
 }
 function writeProgress(progress: Progress) {
   try { localStorage.setItem('cth_progress', JSON.stringify(progress)); } catch { /* local storage is optional */ }
+}
+function createAdminTestProgress(): Progress {
+  return { name: 'organizer-test', displayName: 'Organizer test run', score: 0, won: [], times: {} };
 }
 async function hashPassword(password: string): Promise<string> {
   const data = new TextEncoder().encode('cth_v1:' + password);
@@ -127,6 +132,7 @@ function Brand({ admin = false }: { admin?: boolean }) {
 function TopBar({ progress, onReset, admin = false }: { progress?: Progress; onReset?: () => void; admin?: boolean }) {
   return <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-5 py-5 md:px-8">
     <Brand admin={admin} />
+    {admin && <Link href="/?adminTest=1" className="btn-secondary inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold" data-testid="link-test-hunt"><Play size={14} /> Test the hunt</Link>}
     {progress && <div className="flex items-center gap-3"><div className="hidden text-right sm:block"><div className="mono text-[10px] uppercase tracking-[.18em] text-[hsl(var(--muted-foreground))]">Operator</div><div className="text-sm font-bold">{progress.name || 'Unassigned'}</div></div><div className="flex items-center gap-2 rounded-full border border-[hsl(var(--border))] bg-white/70 px-3 py-1.5"><Zap size={15} className="text-[hsl(43_96%_50%)]" /><b className="mono text-sm">{progress.score}</b><span className="mono text-[10px] text-[hsl(var(--muted-foreground))]">/100</span></div>{onReset && <button type="button" onClick={onReset} className="btn-quiet rounded-xl p-2" aria-label="Reset progress" data-testid="button-reset-progress"><RotateCcw size={16} /></button>}</div>}
   </header>;
 }
@@ -409,7 +415,7 @@ function LockedScreen({ challenge, onBack }: { challenge: ChallengeId; onBack: (
   return <div className="screen-enter mx-auto w-full max-w-2xl px-5 pb-16 md:px-8"><div className="soft-card rounded-3xl p-8 text-center md:p-12"><div className="mx-auto mb-5 grid size-16 place-items-center rounded-2xl bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"><LockKeyhole size={27} /></div><div className="mono text-[10px] uppercase tracking-[.2em] text-[hsl(var(--muted-foreground))]">{meta.eyebrow}</div><h1 className="display mt-3 text-3xl font-bold">Signal scheduled</h1><p className="mx-auto mt-3 max-w-md text-sm leading-7 text-[hsl(var(--muted-foreground))]">This part of the map opens next week. New missions release one at a time so the whole crew has something fresh to solve.</p><div className="mono mt-7 inline-flex items-center gap-2 rounded-full bg-[hsl(var(--primary)/.1)] px-4 py-2 text-xs text-[hsl(var(--primary))]"><Clock3 size={14} /> Unlocks {date.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })} · {days} day{days === 1 ? '' : 's'}</div><div className="mt-8"><button type="button" onClick={onBack} className="btn-quiet inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm" data-testid="button-return-locked"><ArrowLeft size={15} /> Return to map</button></div></div></div>;
 }
 
-function Finale({ progress, setProgress, onReset, passwordHash }: { progress: Progress; setProgress: (p: Progress) => void; onReset: () => void; passwordHash: string }) {
+function Finale({ progress, setProgress, onReset, passwordHash, testMode = false }: { progress: Progress; setProgress: (p: Progress) => void; onReset: () => void; passwordHash: string; testMode?: boolean }) {
   const [code, setCode] = useState('');
   const [opened, setOpened] = useState(progress.submitted || false);
   const [error, setError] = useState('');
@@ -431,9 +437,10 @@ function Finale({ progress, setProgress, onReset, passwordHash }: { progress: Pr
     timeC3: times[2],
     timeC4: times[3],
     totalTime: total,
-    isTest: PREVIEW,
+    isTest: TEST_MODE,
   };
   const syncResult = () => {
+    if (testMode) return;
     submit.mutate({ data: payload }, {
       onSuccess: () => {
         void qc.invalidateQueries({ queryKey: getListResultsQueryKey() });
@@ -442,7 +449,7 @@ function Finale({ progress, setProgress, onReset, passwordHash }: { progress: Pr
     });
   };
   const unlock = () => {
-    if (opened || submit.isPending) return;
+    if (opened || (!testMode && submit.isPending)) return;
     if (code.trim().toUpperCase() !== 'RISK') {
       setError('Not quite. Shift U-L-V-N three places backward.');
       return;
@@ -467,7 +474,7 @@ function Finale({ progress, setProgress, onReset, passwordHash }: { progress: Pr
             <div className="mx-auto max-w-xl rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--muted)/.45)] p-5 text-left text-sm leading-7"><b className="display">🧩 Cipher note</b><br />U → T → S → <b>R</b>. Apply the same three-step backward move to every key. The answer is a word every good security operator keeps top of mind.</div>
             <div className="mx-auto mt-7 flex max-w-sm flex-col gap-3">
               <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} onKeyDown={(e) => e.key === 'Enter' && unlock()} maxLength={10} placeholder="TYPE THE WORD" className="mono rounded-xl border border-[hsl(var(--border))] bg-white/70 px-4 py-3 text-center text-lg tracking-[.3em] outline-none focus:border-[hsl(var(--primary))]" aria-label="Deciphered word" data-testid="input-vault-code" />
-              <button type="button" onClick={unlock} disabled={submit.isPending} className="btn-secondary inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold" data-testid="button-unlock-vault"><Unlock size={16} /> {submit.isPending ? 'Saving result…' : 'Unlock the vault 🔓'}</button>
+               <button type="button" onClick={unlock} disabled={!testMode && submit.isPending} className="btn-secondary inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold" data-testid="button-unlock-vault"><Unlock size={16} /> {!testMode && submit.isPending ? 'Saving result…' : 'Unlock the vault 🔓'}</button>
               {error && <div className="rounded-xl bg-[hsl(var(--destructive)/.1)] p-3 text-sm text-[hsl(var(--destructive))]" role="alert">{error}</div>}
             </div>
           </>
@@ -480,9 +487,9 @@ function Finale({ progress, setProgress, onReset, passwordHash }: { progress: Pr
             <div className="my-8 flex justify-center gap-2 md:gap-3">{'RISK'.split('').map((key) => <div key={key} className="key-pill won grid size-16 place-items-center rounded-2xl md:size-20"><span className="display text-3xl font-bold">{key}</span></div>)}</div>
             <div className="grid gap-3 sm:grid-cols-2"><div className="rounded-2xl bg-[hsl(var(--primary)/.1)] p-5"><div className="display text-4xl font-bold text-[hsl(var(--primary))]">{progress.score}</div><div className="mono mt-1 text-[10px] uppercase tracking-[.17em] text-[hsl(var(--muted-foreground))]">⭐ Points earned</div></div><div className="rounded-2xl bg-[hsl(var(--secondary)/.1)] p-5"><div className="display text-2xl font-bold text-[hsl(var(--secondary))]">{rankFor(progress.score)}</div><div className="mono mt-2 text-[10px] uppercase tracking-[.17em] text-[hsl(var(--muted-foreground))]">🏆 Field rank</div></div></div>
             <div className="mt-4 grid grid-cols-2 gap-2 text-left md:grid-cols-5">{times.map((time, i) => <div key={i} className="rounded-xl border border-[hsl(var(--border))] p-3"><div className="mono text-[10px] text-[hsl(var(--muted-foreground))]">C{i + 1}</div><b className="mono text-sm">{formatDuration(time)}</b></div>)}<div className="rounded-xl border border-[hsl(var(--border))] p-3"><div className="mono text-[10px] text-[hsl(var(--muted-foreground))]">TOTAL</div><b className="mono text-sm">{formatDuration(total)}</b></div></div>
-            {submit.isPending && <p className="mt-5 text-sm text-[hsl(var(--muted-foreground))]">⏳ Syncing your result to the team leaderboard…</p>}
-            {submit.isError && <div className="mt-5 rounded-xl bg-[hsl(var(--destructive)/.1)] p-4 text-sm text-[hsl(var(--destructive))]"><p>✅ Vault opened, but the result could not sync yet.</p><button type="button" onClick={syncResult} className="mt-3 underline decoration-dotted underline-offset-4" data-testid="button-retry-result-sync">Try syncing again</button></div>}
-            {!submit.isPending && !submit.isError && <p className="mt-5 text-sm text-[hsl(153_59%_28%)]">✅ Result synced to the team leaderboard.</p>}
+             {testMode ? <p className="mt-5 text-sm text-[hsl(var(--secondary))]">🧪 Admin test run only — no player progress or leaderboard result was saved.</p> : submit.isPending && <p className="mt-5 text-sm text-[hsl(var(--muted-foreground))]">⏳ Syncing your result to the team leaderboard…</p>}
+             {!testMode && submit.isError && <div className="mt-5 rounded-xl bg-[hsl(var(--destructive)/.1)] p-4 text-sm text-[hsl(var(--destructive))]"><p>✅ Vault opened, but the result could not sync yet.</p><button type="button" onClick={syncResult} className="mt-3 underline decoration-dotted underline-offset-4" data-testid="button-retry-result-sync">Try syncing again</button></div>}
+             {!testMode && !submit.isPending && !submit.isError && <p className="mt-5 text-sm text-[hsl(153_59%_28%)]">✅ Result synced to the team leaderboard.</p>}
             <button type="button" onClick={onReset} className="btn-quiet mt-8 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm" data-testid="button-play-again"><RotateCcw size={15} /> Play again</button>
           </>
         )}
@@ -492,8 +499,9 @@ function Finale({ progress, setProgress, onReset, passwordHash }: { progress: Pr
 }
 
 function PlayerPage() {
-  const [progress, setProgress] = useState<Progress>(() => readProgress());
-  const [name, setName] = useState(() => readProgress().name || '');
+  const adminSession = useGetAdminSession({ query: { enabled: ADMIN_TEST, queryKey: getGetAdminSessionQueryKey(), retry: false } });
+  const [progress, setProgress] = useState<Progress>(() => ADMIN_TEST ? createAdminTestProgress() : readProgress());
+  const [name, setName] = useState(() => ADMIN_TEST ? 'organizer-test' : readProgress().name || '');
   const [started, setStarted] = useState(false);
   const [screen, setScreen] = useState<string>('map');
   const [locked, setLocked] = useState<ChallengeId | null>(null);
@@ -515,9 +523,17 @@ function PlayerPage() {
   const prevWonLen = useRef(progress.won.length);
   const passwordHashRef = useRef('');
 
-  const update = useCallback((next: Progress) => { setProgress(next); writeProgress(next); }, []);
+  useEffect(() => {
+    if (ADMIN_TEST && adminSession.data?.authenticated) {
+      setStarted(true);
+      setScreen('map');
+    }
+  }, [adminSession.data]);
+
+  const update = useCallback((next: Progress) => { setProgress(next); if (!ADMIN_TEST) writeProgress(next); }, []);
 
   const syncToServer = useCallback((p: Progress) => {
+    if (ADMIN_TEST) return;
     if (!p.name || !passwordHashRef.current) return;
     saveProgress.mutate({
       name: p.name.trim().toLowerCase(),
@@ -527,6 +543,7 @@ function PlayerPage() {
 
   // Auto-save whenever a key is claimed or the finale is submitted
   useEffect(() => {
+    if (ADMIN_TEST) return;
     if (!started || !progress.name) return;
     if (progress.won.length > prevWonLen.current || progress.submitted) {
       prevWonLen.current = progress.won.length;
@@ -593,8 +610,18 @@ function PlayerPage() {
     }
   };
 
-  const reset = () => { localStorage.removeItem('cth_progress'); setProgress({ name: '', score: 0, won: [], times: {} }); setName(''); setDisplayName(''); setPassword(''); setStarted(false); setScreen('map'); setLocked(null); setWelcomeBack(false); setLoginError(''); setForgotMode(false); setResetUsername(''); setNewPassword(''); setConfirmPassword(''); setResetError(''); setResetSuccess(false); prevWonLen.current = 0; };
+  const reset = () => {
+    if (ADMIN_TEST) {
+      window.location.assign('/admin');
+      return;
+    }
+    localStorage.removeItem('cth_progress'); setProgress({ name: '', score: 0, won: [], times: {} }); setName(''); setDisplayName(''); setPassword(''); setStarted(false); setScreen('map'); setLocked(null); setWelcomeBack(false); setLoginError(''); setForgotMode(false); setResetUsername(''); setNewPassword(''); setConfirmPassword(''); setResetError(''); setResetSuccess(false); prevWonLen.current = 0;
+  };
   const pick = (id: ChallengeId) => { const i = CHALLENGES.findIndex((c) => c.id === id); if (!isUnlocked(id) || (i > 0 && !progress.won.includes(i - 1))) { setLocked(id); setScreen('locked'); return; } const next = progress.times[id] ? progress : { ...progress, times: { ...progress.times, [id]: { start: Date.now(), seconds: null } } }; update(next); setScreen(id); };
+
+  if (ADMIN_TEST && adminSession.isPending) return <div className="mission-app"><div className="relative z-10 flex min-h-[100dvh] items-center justify-center px-5"><div className="soft-card w-full max-w-md rounded-3xl p-8 text-center"><Loader2 size={25} className="mx-auto mb-4 animate-spin text-[hsl(var(--primary))]" /><h1 className="display text-2xl font-bold">Verifying organizer access</h1><p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">Checking your admin session before opening the test hunt.</p></div></div></div>;
+  if (ADMIN_TEST && adminSession.isError) return <div className="mission-app"><div className="relative z-10 flex min-h-[100dvh] items-center justify-center px-5"><div className="soft-card w-full max-w-md rounded-3xl p-8 text-center"><LockKeyhole size={25} className="mx-auto mb-4 text-[hsl(var(--destructive))]" /><h1 className="display text-2xl font-bold">Admin access required</h1><p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">Sign in as an organizer first, then use the test-hunt button from the dashboard.</p><Link href="/admin" className="btn-secondary mt-6 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold"><ArrowLeft size={15} /> Go to organizer access</Link></div></div></div>;
+  if (ADMIN_TEST && !started) return <div className="mission-app"><div className="relative z-10 flex min-h-[100dvh] items-center justify-center px-5"><div className="soft-card w-full max-w-md rounded-3xl p-8 text-center"><Loader2 size={25} className="mx-auto mb-4 animate-spin text-[hsl(var(--primary))]" /><h1 className="display text-2xl font-bold">Opening the test hunt</h1></div></div></div>;
 
   if (!started) return (
     <div className="mission-app">
@@ -668,6 +695,7 @@ function PlayerPage() {
     <div className="mission-app">
       <TopBar progress={progress} onReset={reset} />
       <main className="relative z-10">
+        {ADMIN_TEST && <div className="mx-auto mb-6 flex w-full max-w-6xl items-center justify-between gap-3 px-5 md:px-8"><div className="flex items-center gap-2 rounded-2xl border border-[hsl(var(--secondary)/.35)] bg-[hsl(var(--secondary)/.1)] px-4 py-3 text-sm text-[hsl(var(--secondary))]"><Sparkles size={16} /><span><b>Admin test mode</b> · This run is isolated and will not change player data or the leaderboard.</span></div><button type="button" onClick={reset} className="btn-quiet shrink-0 rounded-xl px-3 py-2 text-sm" data-testid="button-exit-admin-test">Exit test</button></div>}
         {screen === 'map' && (
           <div className="screen-enter mx-auto w-full max-w-6xl px-5 pb-16 md:px-8">
             {welcomeBack && (
@@ -685,7 +713,7 @@ function PlayerPage() {
         )}
         {['c1', 'c2', 'c3', 'c4'].includes(screen) && <ChallengeScreen challenge={screen as ChallengeId} progress={progress} setProgress={update} onClaim={() => setScreen('map')} onBack={() => setScreen('map')} />}
         {screen === 'locked' && locked && <LockedScreen challenge={locked} onBack={() => setScreen('map')} />}
-        {screen === 'finale' && <Finale progress={progress} setProgress={update} onReset={reset} passwordHash={passwordHashRef.current} />}
+        {screen === 'finale' && <Finale progress={progress} setProgress={update} onReset={reset} passwordHash={passwordHashRef.current} testMode={ADMIN_TEST} />}
       </main>
       <footer className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-5 pb-8 md:px-8"><span className="mono text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">CTH // build 04</span><Link href="/admin" className="mono text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))] underline decoration-dotted underline-offset-4" data-testid="link-admin">Organizer access</Link></footer>
     </div>

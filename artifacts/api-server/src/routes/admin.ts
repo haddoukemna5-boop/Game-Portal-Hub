@@ -76,4 +76,8 @@ router.post("/admin/login", (req, res): void => {
   res.json({ authenticated: true });
 });
 
+router.get("/admin/session", requireAdmin, (_req, res): void => {
+  res.json({ authenticated: true });
+});
+
 export default router;
