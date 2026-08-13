@@ -219,6 +219,14 @@ components:
     GameResultInput:
       type: object
       properties:
+        playerName:
+          type: string
+          minLength: 1
+          description: The canonical player name (lowercased) used to look up the player record for authentication.
+        passwordHash:
+          type: string
+          minLength: 1
+          description: SHA-256 hash of the player's password, used to verify caller identity.
         firstName:
           type: string
           minLength: 1
@@ -244,6 +252,8 @@ components:
         isTest:
           type: boolean
       required:
+        - playerName
+        - passwordHash
         - firstName
         - lastName
         - score
@@ -357,6 +367,9 @@ components:
         name:
           type: string
           minLength: 1
+        passwordHash:
+          type: string
+          minLength: 1
         score:
           type: number
           minimum: 0
@@ -371,6 +384,7 @@ components:
           type: boolean
       required:
         - name
+        - passwordHash
         - score
         - won
         - times

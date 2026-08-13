@@ -6,6 +6,7 @@ const router: IRouter = Router();
 
 type ProgressBody = {
   name: string;
+  passwordHash: string;
   score: number;
   won: number[];
   times: Record<string, { start: number; seconds: number | null }>;
@@ -16,12 +17,14 @@ function validateProgressBody(body: unknown): ProgressBody | null {
   if (!body || typeof body !== "object") return null;
   const b = body as Record<string, unknown>;
   if (typeof b.name !== "string" || !b.name.trim()) return null;
+  if (typeof b.passwordHash !== "string" || !b.passwordHash.trim()) return null;
   if (typeof b.score !== "number" || b.score < 0 || b.score > 100) return null;
   if (!Array.isArray(b.won) || !b.won.every((x) => typeof x === "number")) return null;
   if (!b.times || typeof b.times !== "object") return null;
   if (typeof b.submitted !== "boolean") return null;
   return {
     name: (b.name as string).trim(),
+    passwordHash: (b.passwordHash as string).trim(),
     score: b.score as number,
     won: b.won as number[],
     times: b.times as Record<string, { start: number; seconds: number | null }>,
@@ -49,7 +52,7 @@ router.post("/login", async (req, res): Promise<void> => {
     .limit(1);
 
   if (!existing) {
-    // New user — create account
+    // New user — create account with the supplied password hash
     const [row] = await db
       .insert(playerProgressTable)
       .values({ name, passwordHash, score: 0, won: [], times: {}, submitted: false, updatedAt: new Date() })
@@ -58,15 +61,16 @@ router.post("/login", async (req, res): Promise<void> => {
     return;
   }
 
-  // Returning user — verify password
-  if (existing.passwordHash && existing.passwordHash !== passwordHash) {
+  // Existing account must have a stored password; accounts without one are locked.
+  // (No unauthenticated hash-adoption — that path is an account-takeover vector.)
+  if (!existing.passwordHash) {
     res.status(401).json({ error: "Incorrect password." });
     return;
   }
 
-  // Password matches (or not yet set — adopt the supplied hash)
-  if (!existing.passwordHash) {
-    await db.update(playerProgressTable).set({ passwordHash }).where(eq(playerProgressTable.name, name));
+  if (existing.passwordHash !== passwordHash) {
+    res.status(401).json({ error: "Incorrect password." });
+    return;
   }
 
   res.json({
@@ -80,13 +84,36 @@ router.post("/login", async (req, res): Promise<void> => {
   });
 });
 
-// PUT /progress/:name — save progress (no password needed after login)
+// PUT /progress/:name — save progress (requires passwordHash to authenticate the caller)
 router.put("/progress/:name", async (req, res): Promise<void> => {
   const name = decodeURIComponent(req.params.name).trim().toLowerCase();
   const data = validateProgressBody(req.body);
 
   if (!data) {
     res.status(400).json({ error: "Invalid progress payload" });
+    return;
+  }
+
+  // Fetch the stored record to verify the caller's identity
+  const [existing] = await db
+    .select({ passwordHash: playerProgressTable.passwordHash })
+    .from(playerProgressTable)
+    .where(eq(playerProgressTable.name, name))
+    .limit(1);
+
+  if (!existing) {
+    res.status(404).json({ error: "Player not found." });
+    return;
+  }
+
+  // Require a stored password — accounts without one cannot be written to via this endpoint
+  if (!existing.passwordHash) {
+    res.status(403).json({ error: "Forbidden." });
+    return;
+  }
+
+  if (existing.passwordHash !== data.passwordHash) {
+    res.status(403).json({ error: "Forbidden." });
     return;
   }
 

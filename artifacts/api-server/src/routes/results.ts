@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { and, asc, desc, eq, isNotNull, sql } from "drizzle-orm";
-import { db, gameResultsTable } from "@workspace/db";
+import { and, asc, desc, eq } from "drizzle-orm";
+import { db, gameResultsTable, playerProgressTable } from "@workspace/db";
 import {
   GetResultsSummaryResponse,
   ListResultsResponse,
@@ -9,6 +9,22 @@ import {
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
+
+/** Capitalise the first character of a string. */
+function cap(s: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
+/**
+ * Derive display-name parts from the canonical (lowercased) player name stored
+ * in playerProgressTable.
+ */
+function deriveDisplayName(canonicalName: string): { firstName: string; lastName: string } {
+  const parts = canonicalName.trim().split(/\s+/);
+  const firstName = cap(parts[0] ?? canonicalName);
+  const lastName = parts.length > 1 ? parts.slice(1).map(cap).join(" ") : "Operator";
+  return { firstName, lastName };
+}
 
 router.get("/results", async (req, res): Promise<void> => {
   req.log.info("Fetching leaderboard results");
@@ -29,11 +45,42 @@ router.post("/results", async (req, res): Promise<void> => {
   }
 
   const data = parsed.data;
+  const playerName = data.playerName.trim().toLowerCase();
+
+  // Verify the caller is a registered player with a stored password
+  const [player] = await db
+    .select({ passwordHash: playerProgressTable.passwordHash, name: playerProgressTable.name })
+    .from(playerProgressTable)
+    .where(eq(playerProgressTable.name, playerName))
+    .limit(1);
+
+  if (!player) {
+    res.status(403).json({ error: "Forbidden." });
+    return;
+  }
+
+  // Require a stored password — accounts without one cannot submit results
+  if (!player.passwordHash) {
+    res.status(403).json({ error: "Forbidden." });
+    return;
+  }
+
+  if (player.passwordHash !== data.passwordHash) {
+    res.status(403).json({ error: "Forbidden." });
+    return;
+  }
+
+  // Derive display name from the authenticated player's canonical stored name.
+  // The client-supplied firstName/lastName are ignored; playerName is the immutable
+  // ownership key so no participant can overwrite another's leaderboard entry.
+  const { firstName, lastName } = deriveDisplayName(player.name);
+
   const [result] = await db
     .insert(gameResultsTable)
     .values({
-      firstName: data.firstName.trim(),
-      lastName: data.lastName.trim(),
+      playerName: player.name,
+      firstName,
+      lastName,
       score: data.score,
       rank: data.rank,
       timeC1: data.timeC1,
@@ -44,8 +91,10 @@ router.post("/results", async (req, res): Promise<void> => {
       isTest: data.isTest,
     })
     .onConflictDoUpdate({
-      target: [gameResultsTable.firstName, gameResultsTable.lastName],
+      target: [gameResultsTable.playerName],
       set: {
+        firstName,
+        lastName,
         score: data.score,
         rank: data.rank,
         timeC1: data.timeC1,

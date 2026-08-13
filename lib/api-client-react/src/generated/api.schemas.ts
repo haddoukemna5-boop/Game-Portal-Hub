@@ -31,6 +31,10 @@ export interface GameResult {
 
 export interface GameResultInput {
   /** @minLength 1 */
+  playerName: string;
+  /** @minLength 1 */
+  passwordHash: string;
+  /** @minLength 1 */
   firstName: string;
   /** @minLength 1 */
   lastName: string;
@@ -102,6 +106,8 @@ export type PlayerProgressInputTimes = { [key: string]: unknown };
 export interface PlayerProgressInput {
   /** @minLength 1 */
   name: string;
+  /** @minLength 1 */
+  passwordHash: string;
   /** @minimum 0 */
   score: number;
   won: number[];

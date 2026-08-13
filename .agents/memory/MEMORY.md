@@ -1,0 +1,1 @@
+- [API auth pattern](api-auth-pattern.md) — PUT /progress and POST /results use passwordHash-in-body auth; verify against playerProgressTable before every write.

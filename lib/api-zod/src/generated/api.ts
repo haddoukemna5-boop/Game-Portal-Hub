@@ -50,6 +50,8 @@ export const submitResultBodyScoreMin = 0;
 
 
 export const SubmitResultBody = zod.object({
+  "playerName": zod.string().min(1),
+  "passwordHash": zod.string().min(1),
   "firstName": zod.string().min(1),
   "lastName": zod.string().min(1),
   "score": zod.number().min(submitResultBodyScoreMin),
@@ -135,6 +137,7 @@ export const saveProgressBodyScoreMin = 0;
 
 export const SaveProgressBody = zod.object({
   "name": zod.string().min(1),
+  "passwordHash": zod.string().min(1),
   "score": zod.number().min(saveProgressBodyScoreMin),
   "won": zod.array(zod.number()),
   "times": zod.record(zod.string(), zod.unknown()),

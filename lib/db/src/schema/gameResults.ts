@@ -6,6 +6,8 @@ export const gameResultsTable = pgTable(
   "game_results",
   {
     id: serial("id").primaryKey(),
+    /** Canonical player name from playerProgressTable — immutable ownership key. */
+    playerName: text("player_name").notNull(),
     firstName: text("first_name").notNull(),
     lastName: text("last_name").notNull(),
     score: real("score").notNull(),
@@ -19,10 +21,7 @@ export const gameResultsTable = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
-    participantNameUnique: uniqueIndex("game_results_participant_name_unique").on(
-      table.firstName,
-      table.lastName,
-    ),
+    playerNameUnique: uniqueIndex("game_results_player_name_unique").on(table.playerName),
   }),
 );
 
