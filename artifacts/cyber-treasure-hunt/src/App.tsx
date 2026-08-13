@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import {
   getGetAdminSessionQueryKey, getGetResultsSummaryQueryKey, getHealthCheckQueryKey, getListResultsQueryKey,
-  useAdminLogin, useGetAdminSession, useGetResultsSummary, useHealthCheck, useListResults, useLogin, useLoginWithResetCode, useResetPassword, useResetPlayerPassword, useSaveProgress, useSubmitResult,
+  useAdminLogin, useGetAdminSession, useGetResultsSummary, useHealthCheck, useListResults, useLogin, useResetPassword, useResetPlayerPassword, useSaveProgress, useSubmitResult,
 } from '@workspace/api-client-react';
 import type { GameResultInput } from '@workspace/api-client-react';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -541,8 +541,6 @@ function PlayerPage() {
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [welcomeBack, setWelcomeBack] = useState(false);
   const [forgotMode, setForgotMode] = useState(false);
-  const [resetMode, setResetMode] = useState(false);
-  const [resetCode, setResetCode] = useState('');
   const [resetUsername, setResetUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -551,7 +549,6 @@ function PlayerPage() {
   const [resetLoading, setResetLoading] = useState(false);
   const loginMutation = useLogin();
   const resetMutation = useResetPassword();
-  const resetCodeMutation = useLoginWithResetCode();
   const saveProgress = useSaveProgress();
   const prevWonLen = useRef(progress.won.length);
 
@@ -619,37 +616,6 @@ function PlayerPage() {
     }
   };
 
-  const startWithResetCode = async (e: FormEvent) => {
-    e.preventDefault();
-    const trimmed = name.trim();
-    const code = resetCode.trim().toUpperCase();
-    const pwd = password.trim();
-    if (!trimmed || !code || !pwd) return;
-    setLoadingProfile(true);
-    setLoginError('');
-    try {
-      const result = await resetCodeMutation.mutateAsync({ data: { name: trimmed.toLowerCase(), resetToken: code, password: pwd } });
-      const restored: Progress = { name: trimmed, displayName: result.displayName || trimmed, score: result.score, won: result.won as number[], times: result.times as Progress['times'], submitted: result.submitted };
-      update(restored);
-      prevWonLen.current = restored.won.length;
-      setWelcomeBack(restored.won.length > 0 || !!restored.submitted);
-      setStarted(true);
-      setScreen(restored.submitted ? 'finale' : 'map');
-      setResetMode(false);
-      setResetCode('');
-      setPassword('');
-    } catch (err: unknown) {
-      const status = (err as { response?: { status?: number } }).response?.status;
-      if (status === 401) {
-        setLoginError('Invalid or expired reset code. Contact your organizer for a new one.');
-      } else {
-        setLoginError('Could not connect. Check your connection and try again.');
-      }
-    } finally {
-      setLoadingProfile(false);
-    }
-  };
-
   const doResetPassword = async (e: FormEvent) => {
     e.preventDefault();
     if (newPassword.trim().length < 4) { setResetError('Password must be at least 4 characters.'); return; }
@@ -673,7 +639,7 @@ function PlayerPage() {
 
   const reset = () => {
     if (ADMIN_TEST) { window.location.assign('/admin'); return; }
-    localStorage.removeItem('cth_progress'); setProgress({ name: '', score: 0, won: [], times: {} }); setName(''); setDisplayName(''); setPassword(''); setResetCode(''); setResetMode(false); setStarted(false); setScreen('map'); setLocked(null); setWelcomeBack(false); setLoginError(''); setForgotMode(false); setResetUsername(''); setNewPassword(''); setConfirmPassword(''); setResetError(''); setResetSuccess(false); prevWonLen.current = 0;
+    localStorage.removeItem('cth_progress'); setProgress({ name: '', score: 0, won: [], times: {} }); setName(''); setDisplayName(''); setPassword(''); setStarted(false); setScreen('map'); setLocked(null); setWelcomeBack(false); setLoginError(''); setForgotMode(false); setResetUsername(''); setNewPassword(''); setConfirmPassword(''); setResetError(''); setResetSuccess(false); prevWonLen.current = 0;
   };
   const pick = (id: ChallengeId) => { const i = CHALLENGES.findIndex((c) => c.id === id); if (!isUnlocked(id) || (i > 0 && !progress.won.includes(i - 1))) { setLocked(id); setScreen('locked'); return; } const next = progress.times[id] ? progress : { ...progress, times: { ...progress.times, [id]: { start: Date.now(), seconds: null } } }; update(next); setScreen(id); };
 
@@ -693,7 +659,7 @@ function PlayerPage() {
             <div className="mt-8 flex flex-wrap gap-4 text-sm text-[hsl(var(--muted-foreground))]"><span className="inline-flex items-center gap-2"><Clock3 size={16} className="text-[hsl(var(--primary))]" /> 10–15 min</span><span className="inline-flex items-center gap-2"><Zap size={16} className="text-[hsl(43_96%_50%)]" /> 100 points</span><span className="inline-flex items-center gap-2"><Trophy size={16} className="text-[hsl(var(--secondary))]" /> Team leaderboard</span></div>
           </div>
           <div className="soft-card screen-enter rounded-3xl p-7 md:p-9">
-            {!forgotMode && !resetMode ? (
+            {!forgotMode ? (
               <form onSubmit={start}>
                 <div className="mb-7 flex items-center justify-between"><div><div className="mono text-[10px] uppercase tracking-[.2em] text-[hsl(var(--muted-foreground))]">Create or sign in</div><h2 className="display mt-1 text-4xl font-bold leading-[.98] tracking-[-.04em] text-[hsl(var(--secondary))] md:text-5xl">Welcome, agent.</h2><p className="mt-2 text-sm font-medium text-[hsl(var(--muted-foreground))]">Your mission profile</p></div><div className="grid size-12 rounded-2xl bg-[hsl(var(--foreground))] text-[hsl(var(--primary))] place-items-center"><KeyRound size={20} /></div></div>
                 <label className="mono text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]" htmlFor="player-display-name">Full name</label>
@@ -710,27 +676,9 @@ function PlayerPage() {
                   <span>New? Enter any password to create a profile.</span>
                   <button type="button" onClick={() => { setForgotMode(true); setLoginError(''); setResetUsername(name); }} className="underline decoration-dotted underline-offset-4 hover:text-[hsl(var(--foreground))]">Forgot password?</button>
                 </div>
-                <div className="mt-3 text-center">
-                  <button type="button" onClick={() => { setResetMode(true); setLoginError(''); }} className="text-xs text-[hsl(var(--muted-foreground))] underline decoration-dotted underline-offset-4 hover:text-[hsl(var(--foreground))]" data-testid="link-use-reset-code">Have a reset code from your organizer?</button>
-                </div>
                 <div className="mt-5 border-t border-[hsl(var(--border))] pt-4 text-center">
                   <Link href="/admin" className="mono inline-flex items-center gap-2 text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))] underline decoration-dotted underline-offset-4 hover:text-[hsl(var(--foreground))]" data-testid="link-admin-login">Organizer / admin login <ArrowRight size={12} /></Link>
                 </div>
-              </form>
-            ) : resetMode ? (
-              <form onSubmit={startWithResetCode}>
-                <div className="mb-7 flex items-center justify-between"><div><div className="mono text-[10px] uppercase tracking-[.2em] text-[hsl(var(--muted-foreground))]">Account recovery</div><h2 className="display mt-1 text-2xl font-bold">Use reset code</h2></div><div className="grid size-12 place-items-center rounded-2xl bg-[hsl(var(--foreground))] text-[hsl(var(--primary))]"><KeyRound size={20} /></div></div>
-                <label className="mono text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]" htmlFor="reset-name">Username</label>
-                <input id="reset-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. alex.morgan" className="mt-2 w-full rounded-xl border border-[hsl(var(--border))] bg-white/70 px-4 py-3.5 outline-none transition focus:border-[hsl(var(--primary))]" data-testid="input-player-name" required disabled={loadingProfile} autoComplete="username" />
-                <label className="mono mt-4 block text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]" htmlFor="reset-code">Reset code</label>
-                <input id="reset-code" value={resetCode} onChange={(e) => setResetCode(e.target.value.toUpperCase())} placeholder="e.g. A3F7D2E1C9B44F52" className="mono mt-2 w-full rounded-xl border border-[hsl(var(--border))] bg-white/70 px-4 py-3.5 text-center tracking-[.12em] outline-none transition focus:border-[hsl(var(--primary))]" data-testid="input-reset-code" required disabled={loadingProfile} autoComplete="off" />
-                <label className="mono mt-4 block text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]" htmlFor="reset-new-password">New password</label>
-                <input id="reset-new-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Choose a new password" className="mt-2 w-full rounded-xl border border-[hsl(var(--border))] bg-white/70 px-4 py-3.5 outline-none transition focus:border-[hsl(var(--primary))]" data-testid="input-player-password" required disabled={loadingProfile} autoComplete="new-password" minLength={4} />
-                {loginError && <div className="mt-3 rounded-xl bg-[hsl(var(--destructive)/.1)] px-4 py-3 text-sm text-[hsl(var(--destructive))]" role="alert">{loginError}</div>}
-                <button type="submit" disabled={loadingProfile} className="btn-primary mt-4 flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-sm font-bold" data-testid="button-start-hunt">
-                  {loadingProfile ? <><Loader2 size={16} className="animate-spin" /> Setting new password…</> : <>Set new password <ArrowRight size={17} /></>}
-                </button>
-                <div className="mt-4 text-center"><button type="button" onClick={() => { setResetMode(false); setLoginError(''); setResetCode(''); }} className="text-xs text-[hsl(var(--muted-foreground))] underline decoration-dotted underline-offset-4 hover:text-[hsl(var(--foreground))]"><ArrowLeft size={12} className="mr-1 inline" />Back to sign in</button></div>
               </form>
             ) : (
               <form onSubmit={doResetPassword}>
