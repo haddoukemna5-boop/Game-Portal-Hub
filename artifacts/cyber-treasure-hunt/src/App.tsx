@@ -38,14 +38,14 @@ type Progress = { name: string; displayName?: string; score: number; won: number
 
 const singleChoices: Record<string, Choice[]> = {
   c1q1: [
-    { text: 'It looks legitimate — IT often sends warnings like this.', correct: false, why: 'This is a phishing email. Real IT teams do not threaten 24-hour deletion, use lookalike external domains, or ask you not to report a message.' },
-    { text: 'It is a phishing email.', correct: true, why: 'External lookalike sender, urgency, a mismatched destination, generic greeting and a suspicious attachment are classic phishing signals.' },
+    { text: 'It looks legitimate — IT often sends warnings like this.', correct: false, why: 'This is a phishing email. Real IT teams don’t threaten 24-hour deletion, don’t email from lookalike external domains, and never say “do not report this message”.' },
+    { text: 'It’s a phishing email.', correct: true, why: 'External lookalike sender, extreme urgency, a link whose true destination doesn’t match, a generic greeting and a suspicious .html attachment — classic phishing.' },
   ],
   c1q3: [
-    { text: 'Reply asking whether it is genuine.', correct: false, why: 'Never reply — you confirm your address is live. Report it with the phishing button or to Security, then delete it.' },
-    { text: 'Click the link but enter a fake password to test it.', correct: false, why: 'Never interact with the link. The page itself can be malicious. Report it and delete the message.' },
-    { text: 'Report it with the phishing button, then delete it.', correct: true, why: 'Exactly. Reporting protects colleagues too — Security can block the sender for everyone.' },
-    { text: 'Forward it to colleagues to warn them.', correct: false, why: 'Forwarding spreads the dangerous link. Report it safely so Security can warn everyone.' },
+    { text: 'Reply asking whether it’s genuine', correct: false, why: 'Never reply — you’d confirm your address is live. Report it with the phishing button (or to the security team) and delete it.' },
+    { text: 'Click the link but enter a fake password to test it', correct: false, why: 'Never interact with the link at all — the page itself can be malicious. Report it with the phishing button and delete it.' },
+    { text: 'Report it with the phishing / report button, then delete it', correct: true, why: 'Exactly. Reporting protects your colleagues too — security can block the sender for everyone.' },
+    { text: 'Forward it to colleagues to warn them', correct: false, why: 'Forwarding spreads the dangerous link. Report it with the phishing button — security will warn everyone safely.' },
   ],
   c2q1: [
     { text: 'Canteen beacon, 4th floor', correct: false, why: 'This one was the decoy. A poster on a wall is not proof of anything — verify who put it there before you trust it.' },
@@ -62,13 +62,13 @@ const singleChoices: Record<string, Choice[]> = {
 
 const multiChoices: Record<string, MultiChoice[]> = {
   c1q2: [
-    { text: 'Sender domain “microsoft-secure-login.com” does not belong to your company or Microsoft.', correct: true },
-    { text: 'Extreme urgency and threats: “deactivated in 24 hours”.', correct: true },
-    { text: 'Generic greeting — “Dear Employee” instead of your name.', correct: true },
-    { text: 'The link says “Verify” but points to micros0ft-login.com with a zero.', correct: true },
-    { text: 'It tells you not to report the message.', correct: true },
-    { text: 'The email has a subject line.', correct: false },
-    { text: 'It was sent early in the morning.', correct: false },
+    { text: 'Sender domain “microsoft-secure-login.com” doesn’t belong to your company or Microsoft', correct: true },
+    { text: 'Extreme urgency and threats (“deactivated in 24 hours”)', correct: true },
+    { text: 'Generic greeting — “Dear Employee” instead of your name', correct: true },
+    { text: 'The link text says “Verify” but really points to micros0ft-login.com (with a zero)', correct: true },
+    { text: 'It tells you NOT to report the message', correct: true },
+    { text: 'The email has a subject line', correct: false },
+    { text: 'It was sent early in the morning', correct: false },
   ],
   c2q2: [
     { text: 'The QR code is a sticker stuck on top of another poster.', correct: true },
@@ -205,7 +205,44 @@ function ChallengeScreen({ challenge, progress, setProgress, onClaim, onBack }: 
 }
 
 function ChallengeOne({ answers, done, add }: { answers: Record<string, boolean>; done: (k: string) => void; add: (n: number) => void }) {
-  return <div className="space-y-8"><div className="rounded-2xl bg-[hsl(229_42%_11%)] p-5 text-sm text-[hsl(220_28%_95%)]"><div className="mono mb-3 text-[10px] uppercase tracking-[.2em] text-[hsl(187_78%_62%)]">Intercepted email · 08:42</div><p><b>From:</b> IT Support &lt;help@microsoft-secure-login.com&gt;</p><p><b>Subject:</b> Action required — account will be deactivated in 24 hours</p><p className="mt-3 text-[hsl(223_16%_76%)]">Dear Employee, verify your account immediately to avoid losing access. Do not report this message.</p></div><SingleQuestion id="c1q1" title="Q1 · Is this email legitimate or phishing?" choices={singleChoices.c1q1} points={10} onCorrect={add} completed={!!answers.c1q1} setCompleted={() => done('c1q1')} /><MultiQuestion id="c1q2" title="Q2 · Which phishing indicators can you spot?" choices={multiChoices.c1q2} onEarn={add} completed={!!answers.c1q2} setCompleted={() => done('c1q2')} /><SingleQuestion id="c1q3" title="Q3 · What is the right thing to do?" choices={singleChoices.c1q3} points={5} onCorrect={add} completed={!!answers.c1q3} setCompleted={() => done('c1q3')} /></div>;
+  return (
+    <div className="space-y-8">
+      <div>
+        <h2 className="display text-2xl font-bold">An email just landed in your inbox</h2>
+        <p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">Read it closely. Hover over the link to inspect where it really goes.</p>
+      </div>
+      <div className="mail-preview overflow-hidden rounded-2xl border text-sm shadow-sm">
+        <div className="mail-top flex items-center gap-1 px-4 py-2.5">
+          <span className="size-2.5 rounded-full bg-[#e4605e]" />
+          <span className="size-2.5 rounded-full bg-[#e8b14e]" />
+          <span className="size-2.5 rounded-full bg-[#58c29a]" />
+          <span className="mono ml-2 text-[10px] text-[hsl(225_17%_44%)]">inbox — 1 new message</span>
+        </div>
+        <div className="mail-head space-y-2 px-5 py-4">
+          <div className="text-base font-bold">⚠ URGENT: Your mailbox will be deactivated in 24 hours</div>
+          <div><b>From:</b> IT Service Desk &lt;it-support@microsoft-secure-login.com&gt; <span className="ml-2 inline-flex rounded-full bg-[hsl(334_86%_68%/.18)] px-2 py-0.5 mono text-[9px] font-bold text-[hsl(334_70%_42%)]">External</span></div>
+          <div><b>To:</b> you@yourcompany.com</div>
+          <div><b>Sent:</b> Today, 03:12</div>
+        </div>
+        <div className="space-y-4 px-5 py-5 leading-7">
+          <p>Dear Employee,</p>
+          <p>We have detected unusual sign-in activity on your account. Your mailbox will be <b>permanently deactivated within 24 hours</b> unless you verify your identity immediately.</p>
+          <p>
+            <span className="mail-link" tabIndex={0} role="link">Verify your account now
+              <span className="mail-tooltip">https://yourcompany-verify.micros0ft-login.com/reset</span>
+            </span>
+          </p>
+          <p>Failure to act will result in loss of all emails and files. Do not report this message; the security team has already been notified.</p>
+          <div className="mail-attachment inline-flex items-center rounded-xl px-3 py-2 text-xs">📎 Account_Details.html (12 KB)</div>
+          <p>Regards,<br />IT Service Desk</p>
+        </div>
+      </div>
+      <div className="mono text-[10px] text-[hsl(var(--muted-foreground))]">▲ tip: hover (or tab to) the blue link to reveal its true destination</div>
+      <SingleQuestion id="c1q1" title="Q1 · Is this email legitimate or phishing?" choices={singleChoices.c1q1} points={10} onCorrect={add} completed={!!answers.c1q1} setCompleted={() => done('c1q1')} />
+      <MultiQuestion id="c1q2" title="Q2 · Which phishing indicators can you spot?" choices={multiChoices.c1q2} onEarn={add} completed={!!answers.c1q2} setCompleted={() => done('c1q2')} />
+      <SingleQuestion id="c1q3" title="Q3 · What is the right thing to do with this email?" choices={singleChoices.c1q3} points={5} onCorrect={add} completed={!!answers.c1q3} setCompleted={() => done('c1q3')} />
+    </div>
+  );
 }
 
 function ChallengeTwo({ answers, done, add }: { answers: Record<string, boolean>; done: (k: string) => void; add: (n: number) => void }) {

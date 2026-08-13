@@ -124,6 +124,13 @@
 .option-card.correct { border-color: hsl(153 59% 44%); background: hsl(153 59% 44% / .11); }
 .option-card.wrong { border-color: hsl(var(--destructive)); background: hsl(var(--destructive) / .08); }
 .challenge-panel { border-left: 3px solid hsl(var(--primary)); }
+.mail-preview { background: #fcfcff; color: #1e2a32; border-color: hsl(228 24% 87%); }
+.mail-top { background: #f6f5ff; border-bottom: 1px solid hsl(228 24% 87%); }
+.mail-head { border-bottom: 1px solid hsl(228 24% 87%); }
+.mail-link { position: relative; display: inline-block; color: hsl(230 80% 55%); font-weight: 700; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; cursor: help; }
+.mail-tooltip { visibility: hidden; position: absolute; z-index: 10; left: 50%; bottom: calc(100% + 8px); width: max-content; max-width: min(90vw, 360px); transform: translateX(-50%) translateY(4px); border-radius: 8px; background: hsl(229 42% 11%); padding: 7px 9px; color: hsl(220 28% 95%); font-family: var(--app-font-mono); font-size: 10px; font-weight: 400; line-height: 1.4; opacity: 0; transition: opacity .15s, transform .15s; pointer-events: none; }
+.mail-link:hover .mail-tooltip, .mail-link:focus-visible .mail-tooltip { visibility: visible; transform: translateX(-50%) translateY(0); opacity: 1; }
+.mail-attachment { border: 1px solid hsl(228 24% 87%); background: #f6f5ff; color: hsl(225 17% 44%); }
 .key-pill { border: 1px solid hsl(var(--border)); background: hsl(var(--card) / .84); transition: transform .3s, background .3s; }
 .key-pill.won { border-color: hsl(43 96% 55%); background: linear-gradient(145deg, hsl(43 96% 55%), hsl(334 86% 68%)); color: hsl(230 42% 12%); transform: translateY(-3px) rotate(-2deg); box-shadow: 0 10px 20px hsl(43 96% 55% / .25); }
 .map-line { stroke-dasharray: 7 10; animation: pulseLine 2.8s ease-in-out infinite; }
