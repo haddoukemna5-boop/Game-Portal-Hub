@@ -3,13 +3,12 @@ import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/reac
 import { Link, Route, Switch } from 'wouter';
 import {
   ArrowLeft, ArrowRight, BarChart3, Check, CheckCircle2, ChevronDown, ChevronUp,
-  Clock3, Download, Loader2, LockKeyhole, MapPin, Play, RefreshCw, RotateCcw, Search,
-  Shield, Square, Terminal, Trophy, Unlock, X, Zap,
+  Clock3, Download, KeyRound, Loader2, LockKeyhole, MapPin, Play, RefreshCw, RotateCcw, Search,
+  Shield, Sparkles, Square, Terminal, Trophy, Unlock, X, Zap,
 } from 'lucide-react';
 import {
   getGetResultsSummaryQueryKey, getHealthCheckQueryKey, getListResultsQueryKey,
-  getProgress,
-  useGetResultsSummary, useHealthCheck, useListResults, useSaveProgress, useSubmitResult,
+  useGetResultsSummary, useHealthCheck, useListResults, useLogin, useSaveProgress, useSubmitResult,
 } from '@workspace/api-client-react';
 import type { GameResultInput } from '@workspace/api-client-react';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -110,6 +109,11 @@ function readProgress(): Progress {
 }
 function writeProgress(progress: Progress) {
   try { localStorage.setItem('cth_progress', JSON.stringify(progress)); } catch { /* local storage is optional */ }
+}
+async function hashPassword(password: string): Promise<string> {
+  const data = new TextEncoder().encode('cth_v1:' + password);
+  const buf = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 function Brand({ admin = false }: { admin?: boolean }) {
@@ -303,8 +307,11 @@ function PlayerPage() {
   const [started, setStarted] = useState(() => !!readProgress().name);
   const [screen, setScreen] = useState<string>(() => readProgress().submitted ? 'finale' : 'map');
   const [locked, setLocked] = useState<ChallengeId | null>(null);
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [welcomeBack, setWelcomeBack] = useState(false);
+  const loginMutation = useLogin();
   const saveProgress = useSaveProgress();
   const prevWonLen = useRef(progress.won.length);
 
@@ -330,33 +337,38 @@ function PlayerPage() {
   const start = async (e: FormEvent) => {
     e.preventDefault();
     const trimmed = name.trim();
-    if (!trimmed) return;
+    const pwd = password.trim();
+    if (!trimmed || !pwd) return;
     setLoadingProfile(true);
+    setLoginError('');
     try {
-      const server = await getProgress(trimmed.toLowerCase());
+      const hash = await hashPassword(pwd);
+      const result = await loginMutation.mutateAsync({ data: { name: trimmed.toLowerCase(), passwordHash: hash } });
       const restored: Progress = {
         name: trimmed,
-        score: server.score,
-        won: (server.won as number[]),
-        times: server.times as Progress['times'],
-        submitted: server.submitted,
+        score: result.score,
+        won: result.won as number[],
+        times: result.times as Progress['times'],
+        submitted: result.submitted,
       };
       update(restored);
       prevWonLen.current = restored.won.length;
-      setWelcomeBack(restored.won.length > 0 || restored.submitted);
+      setWelcomeBack(!result.isNew && (restored.won.length > 0 || !!restored.submitted));
       setStarted(true);
       setScreen(restored.submitted ? 'finale' : 'map');
-    } catch {
-      // 404 → no prior progress, start fresh
-      update({ ...progress, name: trimmed });
-      setStarted(true);
-      setScreen('map');
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } }).response?.status;
+      if (status === 401) {
+        setLoginError('Incorrect password. Please try again.');
+      } else {
+        setLoginError('Could not connect. Check your connection and try again.');
+      }
     } finally {
       setLoadingProfile(false);
     }
   };
 
-  const reset = () => { localStorage.removeItem('cth_progress'); setProgress({ name: '', score: 0, won: [], times: {} }); setName(''); setStarted(false); setScreen('map'); setLocked(null); setWelcomeBack(false); prevWonLen.current = 0; };
+  const reset = () => { localStorage.removeItem('cth_progress'); setProgress({ name: '', score: 0, won: [], times: {} }); setName(''); setPassword(''); setStarted(false); setScreen('map'); setLocked(null); setWelcomeBack(false); setLoginError(''); prevWonLen.current = 0; };
   const pick = (id: ChallengeId) => { const i = CHALLENGES.findIndex((c) => c.id === id); if (!isUnlocked(id) || (i > 0 && !progress.won.includes(i - 1))) { setLocked(id); setScreen('locked'); return; } const next = progress.times[id] ? progress : { ...progress, times: { ...progress.times, [id]: { start: Date.now(), seconds: null } } }; update(next); setScreen(id); };
 
   if (!started) return (
@@ -371,13 +383,16 @@ function PlayerPage() {
             <div className="mt-8 flex flex-wrap gap-4 text-sm text-[hsl(var(--muted-foreground))]"><span className="inline-flex items-center gap-2"><Clock3 size={16} className="text-[hsl(var(--primary))]" /> 10–15 min</span><span className="inline-flex items-center gap-2"><Zap size={16} className="text-[hsl(43_96%_50%)]" /> 100 points</span><span className="inline-flex items-center gap-2"><Trophy size={16} className="text-[hsl(var(--secondary))]" /> Team leaderboard</span></div>
           </div>
           <form onSubmit={start} className="soft-card screen-enter rounded-3xl p-7 md:p-9">
-            <div className="mb-7 flex items-center justify-between"><div><div className="mono text-[10px] uppercase tracking-[.2em] text-[hsl(var(--muted-foreground))]">Identify yourself</div><h2 className="display mt-1 text-2xl font-bold">Your mission badge</h2></div><div className="grid size-12 place-items-center rounded-2xl bg-[hsl(var(--foreground))] text-[hsl(var(--primary))]"><Terminal size={20} /></div></div>
-            <label className="mono text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]" htmlFor="player-name">First and last name</label>
-            <input id="player-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Alex Morgan" className="mt-2 w-full rounded-xl border border-[hsl(var(--border))] bg-white/70 px-4 py-3.5 outline-none transition focus:border-[hsl(var(--primary))]" data-testid="input-player-name" required disabled={loadingProfile} />
+            <div className="mb-7 flex items-center justify-between"><div><div className="mono text-[10px] uppercase tracking-[.2em] text-[hsl(var(--muted-foreground))]">Create or sign in</div><h2 className="display mt-1 text-2xl font-bold">Your mission profile</h2></div><div className="grid size-12 place-items-center rounded-2xl bg-[hsl(var(--foreground))] text-[hsl(var(--primary))]"><KeyRound size={20} /></div></div>
+            <label className="mono text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]" htmlFor="player-name">Full name</label>
+            <input id="player-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Alex Morgan" className="mt-2 w-full rounded-xl border border-[hsl(var(--border))] bg-white/70 px-4 py-3.5 outline-none transition focus:border-[hsl(var(--primary))]" data-testid="input-player-name" required disabled={loadingProfile} autoComplete="username" />
+            <label className="mono mt-4 block text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]" htmlFor="player-password">Password</label>
+            <input id="player-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Choose or enter your password" className="mt-2 w-full rounded-xl border border-[hsl(var(--border))] bg-white/70 px-4 py-3.5 outline-none transition focus:border-[hsl(var(--primary))]" data-testid="input-player-password" required disabled={loadingProfile} autoComplete="current-password" minLength={4} />
+            {loginError && <div className="mt-3 rounded-xl bg-[hsl(var(--destructive)/.1)] px-4 py-3 text-sm text-[hsl(var(--destructive))]" role="alert">{loginError}</div>}
             <button type="submit" disabled={loadingProfile} className="btn-primary mt-4 flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-sm font-bold" data-testid="button-start-hunt">
-              {loadingProfile ? <><Loader2 size={16} className="animate-spin" /> Restoring progress…</> : <>Start the hunt <ArrowRight size={17} /></>}
+              {loadingProfile ? <><Loader2 size={16} className="animate-spin" /> Signing in…</> : <>Start the hunt <ArrowRight size={17} /></>}
             </button>
-            <p className="mt-4 text-center text-xs leading-5 text-[hsl(var(--muted-foreground))]">Progress is saved to your profile — pick up from any device.</p>
+            <p className="mt-4 text-center text-xs leading-5 text-[hsl(var(--muted-foreground))]">New here? Enter any password to create your profile. Returning? Use the same name and password to pick up where you left off.</p>
           </form>
         </div>
       </main>

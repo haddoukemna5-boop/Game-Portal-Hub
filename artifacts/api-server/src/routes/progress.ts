@@ -4,7 +4,15 @@ import { db, playerProgressTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
-function validateBody(body: unknown): { name: string; score: number; won: number[]; times: Record<string, { start: number; seconds: number | null }>; submitted: boolean } | null {
+type ProgressBody = {
+  name: string;
+  score: number;
+  won: number[];
+  times: Record<string, { start: number; seconds: number | null }>;
+  submitted: boolean;
+};
+
+function validateProgressBody(body: unknown): ProgressBody | null {
   if (!body || typeof body !== "object") return null;
   const b = body as Record<string, unknown>;
   if (typeof b.name !== "string" || !b.name.trim()) return null;
@@ -21,32 +29,61 @@ function validateBody(body: unknown): { name: string; score: number; won: number
   };
 }
 
-router.get("/progress/:name", async (req, res): Promise<void> => {
-  const name = decodeURIComponent(req.params.name).trim().toLowerCase();
-  const [row] = await db
+// POST /login — create account or verify password, then return progress
+router.post("/login", async (req, res): Promise<void> => {
+  const body = req.body as Record<string, unknown>;
+  const rawName = typeof body.name === "string" ? body.name.trim() : "";
+  const passwordHash = typeof body.passwordHash === "string" ? body.passwordHash : "";
+
+  if (!rawName || !passwordHash) {
+    res.status(400).json({ error: "Name and password are required." });
+    return;
+  }
+
+  const name = rawName.toLowerCase();
+
+  const [existing] = await db
     .select()
     .from(playerProgressTable)
     .where(eq(playerProgressTable.name, name))
     .limit(1);
 
-  if (!row) {
-    res.status(404).json({ error: "Player not found" });
+  if (!existing) {
+    // New user — create account
+    const [row] = await db
+      .insert(playerProgressTable)
+      .values({ name, passwordHash, score: 0, won: [], times: {}, submitted: false, updatedAt: new Date() })
+      .returning();
+    res.json({ isNew: true, name: row.name, score: row.score, won: row.won, times: row.times, submitted: row.submitted, updatedAt: row.updatedAt });
     return;
   }
 
+  // Returning user — verify password
+  if (existing.passwordHash && existing.passwordHash !== passwordHash) {
+    res.status(401).json({ error: "Incorrect password." });
+    return;
+  }
+
+  // Password matches (or not yet set — adopt the supplied hash)
+  if (!existing.passwordHash) {
+    await db.update(playerProgressTable).set({ passwordHash }).where(eq(playerProgressTable.name, name));
+  }
+
   res.json({
-    name: row.name,
-    score: row.score,
-    won: row.won,
-    times: row.times,
-    submitted: row.submitted,
-    updatedAt: row.updatedAt,
+    isNew: false,
+    name: existing.name,
+    score: existing.score,
+    won: existing.won,
+    times: existing.times,
+    submitted: existing.submitted,
+    updatedAt: existing.updatedAt,
   });
 });
 
+// PUT /progress/:name — save progress (no password needed after login)
 router.put("/progress/:name", async (req, res): Promise<void> => {
   const name = decodeURIComponent(req.params.name).trim().toLowerCase();
-  const data = validateBody(req.body);
+  const data = validateProgressBody(req.body);
 
   if (!data) {
     res.status(400).json({ error: "Invalid progress payload" });
@@ -55,34 +92,14 @@ router.put("/progress/:name", async (req, res): Promise<void> => {
 
   const [row] = await db
     .insert(playerProgressTable)
-    .values({
-      name,
-      score: data.score,
-      won: data.won,
-      times: data.times,
-      submitted: data.submitted,
-      updatedAt: new Date(),
-    })
+    .values({ name, score: data.score, won: data.won, times: data.times, submitted: data.submitted, updatedAt: new Date() })
     .onConflictDoUpdate({
       target: [playerProgressTable.name],
-      set: {
-        score: data.score,
-        won: data.won,
-        times: data.times,
-        submitted: data.submitted,
-        updatedAt: new Date(),
-      },
+      set: { score: data.score, won: data.won, times: data.times, submitted: data.submitted, updatedAt: new Date() },
     })
     .returning();
 
-  res.json({
-    name: row.name,
-    score: row.score,
-    won: row.won,
-    times: row.times,
-    submitted: row.submitted,
-    updatedAt: row.updatedAt,
-  });
+  res.json({ name: row.name, score: row.score, won: row.won, times: row.times, submitted: row.submitted, updatedAt: row.updatedAt });
 });
 
 export default router;

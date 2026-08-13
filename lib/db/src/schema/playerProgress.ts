@@ -7,6 +7,7 @@ export const playerProgressTable = pgTable(
   {
     id: serial("id").primaryKey(),
     name: text("name").notNull(),
+    passwordHash: text("password_hash"),
     score: integer("score").notNull().default(0),
     won: jsonb("won").$type<number[]>().notNull().default([]),
     times: jsonb("times").$type<Record<string, ChallengeTime>>().notNull().default({}),

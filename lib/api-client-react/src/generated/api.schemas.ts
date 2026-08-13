@@ -67,6 +67,25 @@ export interface ErrorResponse {
   error: string;
 }
 
+export interface LoginInput {
+  /** @minLength 1 */
+  name: string;
+  /** @minLength 1 */
+  passwordHash: string;
+}
+
+export type LoginResultTimes = { [key: string]: unknown };
+
+export interface LoginResult {
+  isNew: boolean;
+  name: string;
+  score: number;
+  won: number[];
+  times: LoginResultTimes;
+  submitted: boolean;
+  updatedAt: string;
+}
+
 export type PlayerProgressTimes = { [key: string]: unknown };
 
 export interface PlayerProgress {

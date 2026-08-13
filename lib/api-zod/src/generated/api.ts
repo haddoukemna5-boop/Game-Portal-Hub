@@ -79,6 +79,30 @@ export const SubmitResultResponse = zod.object({
 
 
 /**
+ * Creates a new player account or verifies an existing one's password. Returns saved progress on success.
+ * @summary Create account or login
+ */
+
+
+
+
+export const LoginBody = zod.object({
+  "name": zod.string().min(1),
+  "passwordHash": zod.string().min(1)
+})
+
+export const LoginResponse = zod.object({
+  "isNew": zod.boolean(),
+  "name": zod.string(),
+  "score": zod.number(),
+  "won": zod.array(zod.number()),
+  "times": zod.record(zod.string(), zod.unknown()),
+  "submitted": zod.boolean(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
  * Returns the saved progress for a player by name. Returns 404 if not found.
  * @summary Get player progress
  */

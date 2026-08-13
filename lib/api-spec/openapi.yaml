@@ -67,6 +67,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /login:
+    post:
+      operationId: login
+      tags: [progress]
+      summary: Create account or login
+      description: Creates a new player account or verifies an existing one's password. Returns saved progress on success.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResult"
+        "400":
+          description: Missing fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Wrong password
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /progress/{name}:
     get:
       operationId: getProgress
@@ -253,6 +284,47 @@ components:
           type: string
       required:
         - error
+    LoginInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        passwordHash:
+          type: string
+          minLength: 1
+      required:
+        - name
+        - passwordHash
+    LoginResult:
+      type: object
+      properties:
+        isNew:
+          type: boolean
+        name:
+          type: string
+        score:
+          type: number
+        won:
+          type: array
+          items:
+            type: number
+        times:
+          type: object
+          additionalProperties: true
+        submitted:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - isNew
+        - name
+        - score
+        - won
+        - times
+        - submitted
+        - updatedAt
     PlayerProgress:
       type: object
       properties:
