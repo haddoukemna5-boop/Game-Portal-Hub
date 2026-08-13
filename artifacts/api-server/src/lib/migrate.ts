@@ -84,6 +84,13 @@ export async function runMigrations(): Promise<void> {
         AND lower(gr.last_name) <> 'operator';
     `);
 
+    // ── Migration: add one-time reset token columns to player_progress ──
+    await client.query(`
+      ALTER TABLE player_progress
+        ADD COLUMN IF NOT EXISTS reset_token text,
+        ADD COLUMN IF NOT EXISTS reset_token_expiry timestamptz;
+    `);
+
     await client.query("COMMIT");
     logger.info("Database migrations applied successfully");
   } catch (err) {

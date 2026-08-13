@@ -11,6 +11,8 @@ export interface HealthStatus {
 
 export interface GameResult {
   id: number;
+  /** Canonical (lowercased) player name — used as the key for password reset. */
+  playerName: string;
   firstName: string;
   lastName: string;
   score: number;
@@ -141,6 +143,22 @@ export interface PlayerProgress {
   updatedAt: string;
 }
 
+export interface AdminAuthInput {
+  /**
+     * The organizer passcode — validated against SESSION_SECRET on the server.
+     * @minLength 1
+     */
+  passcode: string;
+}
+export interface AdminResetInput {
+  /**
+     * The organizer passcode — validated against SESSION_SECRET on the server.
+     * @minLength 1
+     */
+  adminPasscode: string;
+}
+
+export type PasswordResetResultTimes = { [key: string]: unknown };
 export type PlayerProgressInputTimes = { [key: string]: unknown };
 
 export interface PlayerProgressInput {
@@ -155,3 +173,37 @@ export interface PlayerProgressInput {
   submitted: boolean;
 }
 
+export interface AdminAuthResult {
+  ok: boolean;
+}
+
+/**
+ * Returned when an admin-initiated password reset succeeds. Contains the one-time token to share with the player.
+ */
+export interface PasswordResetResult {
+  name: string;
+  score: number;
+  won: number[];
+  times: PasswordResetResultTimes;
+  submitted: boolean;
+  updatedAt: string;
+  /** One-time reset token — share this with the player. Valid for 24 hours. */
+  resetToken: string;
+  /** ISO timestamp when the reset token expires. */
+  expiresAt: string;
+}
+
+export interface LoginResetInput {
+  /** @minLength 1 */
+  name: string;
+  /**
+     * The one-time reset token issued by the admin.
+     * @minLength 1
+     */
+  resetToken: string;
+  /**
+     * SHA-256 hash of the player's new chosen password.
+     * @minLength 1
+     */
+  passwordHash: string;
+}

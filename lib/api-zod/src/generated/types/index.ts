@@ -6,16 +6,22 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './adminAuthInput';
+export * from './adminAuthResult';
 export * from './adminLoginInput';
 export * from './adminLoginResult';
 export * from './adminSessionResult';
+export * from './adminResetInput';
 export * from './errorResponse';
 export * from './gameResult';
 export * from './gameResultInput';
 export * from './healthStatus';
 export * from './loginInput';
+export * from './loginResetInput';
 export * from './loginResult';
 export * from './loginResultTimes';
+export * from './passwordResetResult';
+export * from './passwordResetResultTimes';
 export * from './playerProgress';
 export * from './playerProgressInput';
 export * from './playerProgressInputTimes';

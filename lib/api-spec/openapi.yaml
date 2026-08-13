@@ -234,6 +234,111 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /admin/auth:
+    post:
+      operationId: verifyAdminPasscode
+      tags: [progress]
+      summary: Verify admin passcode
+      description: Validates the supplied passcode against the server-configured SESSION_SECRET. Returns 200 on success, 401 on wrong passcode, 503 if admin auth is not configured.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminAuthInput"
+      responses:
+        "200":
+          description: Passcode accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAuthResult"
+        "401":
+          description: Incorrect passcode
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Admin auth not configured on this server
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /login/reset:
+    post:
+      operationId: loginWithResetCode
+      tags: [progress]
+      summary: Redeem a one-time reset code to set a new password
+      description: Verifies the player-supplied reset token and atomically sets a new password hash. The token is consumed on success. Score and progress are preserved.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginResetInput"
+      responses:
+        "200":
+          description: Reset accepted — progress returned with new password set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResult"
+        "400":
+          description: Missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Invalid or expired reset token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /progress/{name}/password:
+    delete:
+      operationId: resetPlayerPassword
+      tags: [progress]
+      summary: Admin-initiated password reset
+      description: Generates a one-time reset token for the named player. The token must be shared with the player so they can reclaim their account via POST /login/reset. Score, won keys, and times are preserved. Requires the SESSION_SECRET as admin passcode.
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminResetInput"
+      responses:
+        "200":
+          description: Reset token generated — share it with the player
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PasswordResetResult"
+        "401":
+          description: Invalid admin passcode
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Player not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Admin auth not configured on this server
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /results/summary:
     get:
       operationId: getResultsSummary
@@ -261,6 +366,9 @@ components:
       properties:
         id:
           type: number
+        playerName:
+          type: string
+          description: Canonical (lowercased) player name — used as the key for password reset.
         firstName:
           type: string
         lastName:
@@ -286,6 +394,7 @@ components:
           format: date-time
       required:
         - id
+        - playerName
         - firstName
         - lastName
         - score
@@ -489,6 +598,85 @@ components:
         - times
         - submitted
         - updatedAt
+    AdminAuthInput:
+      type: object
+      properties:
+        passcode:
+          type: string
+          minLength: 1
+          description: The organizer passcode — validated against SESSION_SECRET on the server.
+      required:
+        - passcode
+    AdminAuthResult:
+      type: object
+      properties:
+        ok:
+          type: boolean
+      required:
+        - ok
+    AdminResetInput:
+      type: object
+      properties:
+        adminPasscode:
+          type: string
+          minLength: 1
+          description: The organizer passcode — validated against SESSION_SECRET on the server.
+      required:
+        - adminPasscode
+    PasswordResetResult:
+      type: object
+      description: Returned when an admin-initiated password reset succeeds. Contains the one-time token to share with the player.
+      properties:
+        name:
+          type: string
+        score:
+          type: number
+        won:
+          type: array
+          items:
+            type: number
+        times:
+          type: object
+          additionalProperties: true
+        submitted:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+        resetToken:
+          type: string
+          description: One-time reset token — share this with the player. Valid for 24 hours.
+        expiresAt:
+          type: string
+          format: date-time
+          description: ISO timestamp when the reset token expires.
+      required:
+        - name
+        - score
+        - won
+        - times
+        - submitted
+        - updatedAt
+        - resetToken
+        - expiresAt
+    LoginResetInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        resetToken:
+          type: string
+          minLength: 1
+          description: The one-time reset token issued by the admin.
+        passwordHash:
+          type: string
+          minLength: 1
+          description: SHA-256 hash of the player's new chosen password.
+      required:
+        - name
+        - resetToken
+        - passwordHash
     PlayerProgressInput:
       type: object
       properties:
@@ -517,4 +705,3 @@ components:
         - won
         - times
         - submitted
-

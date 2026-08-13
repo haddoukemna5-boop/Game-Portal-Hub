@@ -23,6 +23,7 @@ export const HealthCheckResponse = zod.object({
  */
 export const ListResultsResponseItem = zod.object({
   "id": zod.number(),
+  "playerName": zod.string().describe('Canonical (lowercased) player name — used as the key for password reset.'),
   "firstName": zod.string(),
   "lastName": zod.string(),
   "score": zod.number(),
@@ -44,11 +45,7 @@ export const ListResultsResponse = zod.array(ListResultsResponseItem)
  */
 
 
-
-
 export const submitResultBodyScoreMin = 0;
-
-
 
 
 export const SubmitResultBody = zod.object({
@@ -68,6 +65,7 @@ export const SubmitResultBody = zod.object({
 
 export const SubmitResultResponse = zod.object({
   "id": zod.number(),
+  "playerName": zod.string().describe('Canonical (lowercased) player name — used as the key for password reset.'),
   "firstName": zod.string(),
   "lastName": zod.string(),
   "score": zod.number(),
@@ -86,8 +84,6 @@ export const SubmitResultResponse = zod.object({
  * Creates a new player account or verifies an existing one's password. Returns saved progress on success.
  * @summary Create account or login
  */
-
-
 
 
 export const LoginBody = zod.object({
@@ -114,8 +110,6 @@ export const LoginResponse = zod.object({
  */
 
 
-
-
 export const AdminLoginBody = zod.object({
   "username": zod.string().min(1),
   "password": zod.string().min(1)
@@ -139,8 +133,6 @@ export const GetAdminSessionResponse = zod.object({
  * Allows a player to set a new password using their username alone. No second factor — appropriate for an internal game.
  * @summary Reset a player's password by username
  */
-
-
 
 
 export const ResetPasswordBody = zod.object({
@@ -180,9 +172,7 @@ export const SaveProgressParams = zod.object({
 })
 
 
-
 export const saveProgressBodyScoreMin = 0;
-
 
 
 export const SaveProgressBody = zod.object({
@@ -203,7 +193,18 @@ export const SaveProgressResponse = zod.object({
   "updatedAt": zod.coerce.date()
 })
 
+export const VerifyAdminPasscodeBody = zod.object({
+  "passcode": zod.string().min(1).describe('The organizer passcode — validated against SESSION_SECRET on the server.')
+})
 
+
+/**
+ * Generates a one-time reset token for the named player. The token must be shared with the player so they can reclaim their account via POST /login/reset. Score, won keys, and times are preserved. Requires the SESSION_SECRET as admin passcode.
+ * @summary Admin-initiated password reset
+ */
+export const ResetPlayerPasswordParams = zod.object({
+  "name": zod.coerce.string()
+})
 /**
  * Returns aggregate leaderboard metrics for the admin dashboard.
  * @summary Get leaderboard summary
@@ -218,3 +219,37 @@ export const GetResultsSummaryResponse = zod.object({
 })
 
 
+export const ResetPlayerPasswordResponse = zod.object({
+  "name": zod.string(),
+  "score": zod.number(),
+  "won": zod.array(zod.number()),
+  "times": zod.record(zod.string(), zod.unknown()),
+  "submitted": zod.boolean(),
+  "updatedAt": zod.coerce.date(),
+  "resetToken": zod.string().describe('One-time reset token — share this with the player. Valid for 24 hours.'),
+  "expiresAt": zod.coerce.date().describe('ISO timestamp when the reset token expires.')
+}).describe('Returned when an admin-initiated password reset succeeds. Contains the one-time token to share with the player.')
+
+export const ResetPlayerPasswordBody = zod.object({
+  "adminPasscode": zod.string().min(1).describe('The organizer passcode — validated against SESSION_SECRET on the server.')
+})
+
+export const LoginWithResetCodeBody = zod.object({
+  "name": zod.string().min(1),
+  "resetToken": zod.string().min(1).describe('The one-time reset token issued by the admin.'),
+  "passwordHash": zod.string().min(1).describe('SHA-256 hash of the player\'s new chosen password.')
+})
+
+export const VerifyAdminPasscodeResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+export const LoginWithResetCodeResponse = zod.object({
+  "isNew": zod.boolean(),
+  "name": zod.string(),
+  "score": zod.number(),
+  "won": zod.array(zod.number()),
+  "times": zod.record(zod.string(), zod.unknown()),
+  "submitted": zod.boolean(),
+  "updatedAt": zod.coerce.date()
+})

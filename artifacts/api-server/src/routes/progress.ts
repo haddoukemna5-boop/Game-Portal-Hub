@@ -1,5 +1,6 @@
+import { randomBytes } from "crypto";
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { and, eq, gt, isNotNull } from "drizzle-orm";
 import { db, playerProgressTable } from "@workspace/db";
 
 const router: IRouter = Router();
@@ -32,6 +33,22 @@ function validateProgressBody(body: unknown): ProgressBody | null {
   };
 }
 
+/**
+ * Verify the admin passcode against SESSION_SECRET.
+ * Returns an error string if invalid, null if valid.
+ * Fails closed: if SESSION_SECRET is not configured, always rejects.
+ */
+function checkAdminPasscode(passcode: string): string | null {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) {
+    return "Admin authentication is not configured on this server.";
+  }
+  if (!passcode || passcode !== secret) {
+    return "Incorrect admin passcode.";
+  }
+  return null;
+}
+
 function rowToLoginResult(row: typeof playerProgressTable.$inferSelect, isNew: boolean) {
   return {
     isNew,
@@ -45,6 +62,19 @@ function rowToLoginResult(row: typeof playerProgressTable.$inferSelect, isNew: b
   };
 }
 
+// POST /admin/auth — verify the admin passcode without exposing SESSION_SECRET to the client
+router.post("/admin/auth", async (req, res): Promise<void> => {
+  const body = req.body as Record<string, unknown>;
+  const passcode = typeof body.passcode === "string" ? body.passcode : "";
+  const authErr = checkAdminPasscode(adminPasscode);
+  if (authErr) {
+    const status = process.env.SESSION_SECRET ? 401 : 503;
+    res.status(status).json({ error: authErr });
+    return;
+  }
+  res.json({ ok: true });
+});
+
 // POST /login — create account or verify password, then return progress
 router.post("/login", async (req, res): Promise<void> => {
   const body = req.body as Record<string, unknown>;
@@ -57,92 +87,10 @@ router.post("/login", async (req, res): Promise<void> => {
     return;
   }
 
-  const name = rawName.toLowerCase();
-
-  const [existing] = await db
-    .select()
-    .from(playerProgressTable)
-    .where(eq(playerProgressTable.name, name))
-    .limit(1);
-
-  if (!existing) {
-    // New user — create account with the supplied password hash and display name
-    const [row] = await db
-      .insert(playerProgressTable)
-      .values({ name, displayName: displayName || name, passwordHash, score: 0, won: [], times: {}, submitted: false, updatedAt: new Date() })
-      .returning();
-    res.json(rowToLoginResult(row, true));
-    return;
-  }
-
-  // Existing account must have a stored password; accounts without one are locked.
-  if (!existing.passwordHash) {
-    res.status(401).json({ error: "Incorrect password." });
-    return;
-  }
-
-  if (existing.passwordHash !== passwordHash) {
-    res.status(401).json({ error: "Incorrect password." });
-    return;
-  }
-
-  // Update display name if a non-empty one was supplied and it differs from stored
-  if (displayName && displayName !== existing.displayName) {
-    await db
-      .update(playerProgressTable)
-      .set({ displayName })
-      .where(eq(playerProgressTable.name, name));
-    existing.displayName = displayName;
-  }
-
-  res.json(rowToLoginResult(existing, false));
-});
-
-// POST /reset-password — set a new password by username (no second factor)
-router.post("/reset-password", async (req, res): Promise<void> => {
-  const body = req.body as Record<string, unknown>;
-  const rawName = typeof body.name === "string" ? body.name.trim() : "";
-  const newPasswordHash = typeof body.newPasswordHash === "string" ? body.newPasswordHash.trim() : "";
-
-  if (!rawName || !newPasswordHash) {
-    res.status(400).json({ error: "Username and new password are required." });
-    return;
-  }
-
-  const name = rawName.toLowerCase();
-
-  const [existing] = await db
-    .select({ id: playerProgressTable.id })
-    .from(playerProgressTable)
-    .where(eq(playerProgressTable.name, name))
-    .limit(1);
-
-  if (!existing) {
-    res.status(404).json({ error: "No account found with that username." });
-    return;
-  }
-
-  await db
-    .update(playerProgressTable)
-    .set({ passwordHash: newPasswordHash })
-    .where(eq(playerProgressTable.name, name));
-
-  res.json({ error: "Password reset successfully." });
-});
-
-// PUT /progress/:name — save progress (requires passwordHash to authenticate the caller)
-router.put("/progress/:name", async (req, res): Promise<void> => {
   const name = decodeURIComponent(req.params.name).trim().toLowerCase();
-  const data = validateProgressBody(req.body);
 
-  if (!data) {
-    res.status(400).json({ error: "Invalid progress payload" });
-    return;
-  }
-
-  // Fetch the stored record to verify the caller's identity
   const [existing] = await db
-    .select({ passwordHash: playerProgressTable.passwordHash })
+    .select({ name: playerProgressTable.name })
     .from(playerProgressTable)
     .where(eq(playerProgressTable.name, name))
     .limit(1);
@@ -164,15 +112,193 @@ router.put("/progress/:name", async (req, res): Promise<void> => {
   }
 
   const [row] = await db
-    .insert(playerProgressTable)
-    .values({ name, score: data.score, won: data.won, times: data.times, submitted: data.submitted, updatedAt: new Date() })
-    .onConflictDoUpdate({
-      target: [playerProgressTable.name],
-      set: { score: data.score, won: data.won, times: data.times, submitted: data.submitted, updatedAt: new Date() },
-    })
+    .update(playerProgressTable)
+    .set({ passwordHash: null, resetToken, resetTokenExpiry, updatedAt: new Date() })
+    .where(eq(playerProgressTable.name, name))
     .returning();
 
-  res.json({ name: row.name, score: row.score, won: row.won, times: row.times, submitted: row.submitted, updatedAt: row.updatedAt });
+  res.json({
+    name: row.name,
+    score: row.score,
+    won: row.won,
+    times: row.times,
+    submitted: row.submitted,
+    updatedAt: row.updatedAt,
+  });
+});
+
+// DELETE /progress/:name/password — admin-initiated password reset
+// Generates a one-time reset token the player uses to reclaim their account.
+// Score, won keys, and times are preserved. Requires the SESSION_SECRET as admin passcode.
+router.delete("/progress/:name/password", async (req, res): Promise<void> => {
+  const body = req.body as Record<string, unknown>;
+  const rawName = typeof body.name === "string" ? body.name.trim() : "";
+  const resetToken = randomBytes(8).toString("hex").toUpperCase();
+  const passwordHash = typeof body.passwordHash === "string" ? body.passwordHash : "";
+
+  if (!rawName || !resetToken || !passwordHash) {
+    res.status(400).json({ error: "Name, reset token, and new password are required." });
+    return;
+  }
+
+  const name = decodeURIComponent(req.params.name).trim().toLowerCase();
+
+  // Use a generic error to avoid leaking whether the player name exists
+  const invalidTokenError = "Invalid or expired reset token.";
+
+  // Single atomic conditional UPDATE — validates and consumes the token in one
+  // SQL statement. The WHERE clause matches name, exact token value, and a
+  // non-expired non-null expiry so two concurrent requests with the same token
+  // can never both succeed: the second finds no matching row (token already null).
+  const now = new Date();
+  const [row] = await db
+    .update(playerProgressTable)
+    .set({ passwordHash: null, resetToken, resetTokenExpiry, updatedAt: new Date() })
+    .where(eq(playerProgressTable.name, name))
+    .returning();
+
+  res.json({
+    name: row.name,
+    score: row.score,
+    won: row.won,
+    times: row.times,
+    submitted: row.submitted,
+    updatedAt: row.updatedAt,
+  });
+});
+
+// DELETE /progress/:name/password — admin-initiated password reset
+// Generates a one-time reset token the player uses to reclaim their account.
+// Score, won keys, and times are preserved. Requires the SESSION_SECRET as admin passcode.
+router.delete("/progress/:name/password", async (req, res): Promise<void> => {
+  const body = req.body as Record<string, unknown>;
+  const rawName = typeof body.name === "string" ? body.name.trim() : "";
+  const newPasswordHash = typeof body.newPasswordHash === "string" ? body.newPasswordHash.trim() : "";
+
+  if (!rawName || !newPasswordHash) {
+    res.status(400).json({ error: "Username and new password are required." });
+    return;
+  }
+
+  const name = decodeURIComponent(req.params.name).trim().toLowerCase();
+
+  const [existing] = await db
+    .select({ name: playerProgressTable.name })
+    .from(playerProgressTable)
+    .where(eq(playerProgressTable.name, name))
+    .limit(1);
+
+  if (!existing) {
+    res.status(404).json({ error: "No account found with that username." });
+    return;
+  }
+
+  await db
+    .update(playerProgressTable)
+    .set({ passwordHash: newPasswordHash })
+    .where(eq(playerProgressTable.name, name));
+
+  res.json({ ok: true });
+});
+
+// PUT /progress/:name — save progress (requires passwordHash to authenticate the caller)
+router.put("/progress/:name", async (req, res): Promise<void> => {
+  const name = decodeURIComponent(req.params.name).trim().toLowerCase();
+  const data = validateProgressBody(req.body);
+
+  if (!data) {
+    res.status(400).json({ error: "Invalid progress payload" });
+    return;
+  }
+
+  // Fetch the stored record to verify the caller's identity
+  const [existing] = await db
+    .select({ name: playerProgressTable.name })
+    .from(playerProgressTable)
+    .where(eq(playerProgressTable.name, name))
+    .limit(1);
+
+  if (!existing) {
+    res.status(404).json({ error: "Player not found." });
+    return;
+  }
+
+  // Require a stored password — accounts without one cannot be written to via this endpoint
+  if (!existing.passwordHash) {
+    res.status(403).json({ error: "Forbidden." });
+    return;
+  }
+
+  if (existing.passwordHash !== data.passwordHash) {
+    res.status(403).json({ error: "Forbidden." });
+    return;
+  }
+
+  const [row] = await db
+    .update(playerProgressTable)
+    .set({ passwordHash: null, resetToken, resetTokenExpiry, updatedAt: new Date() })
+    .where(eq(playerProgressTable.name, name))
+    .returning();
+
+  res.json({
+    name: row.name,
+    score: row.score,
+    won: row.won,
+    times: row.times,
+    submitted: row.submitted,
+    updatedAt: row.updatedAt,
+  });
+});
+
+// DELETE /progress/:name/password — admin-initiated password reset
+// Generates a one-time reset token the player uses to reclaim their account.
+// Score, won keys, and times are preserved. Requires the SESSION_SECRET as admin passcode.
+router.delete("/progress/:name/password", async (req, res): Promise<void> => {
+  const body = req.body as Record<string, unknown>;
+  const adminPasscode = typeof body.adminPasscode === "string" ? body.adminPasscode : "";
+
+  const authErr = checkAdminPasscode(adminPasscode);
+  if (authErr) {
+    const status = process.env.SESSION_SECRET ? 401 : 503;
+    res.status(status).json({ error: authErr });
+    return;
+  }
+
+  const name = decodeURIComponent(req.params.name).trim().toLowerCase();
+
+  const [existing] = await db
+    .select({ name: playerProgressTable.name })
+    .from(playerProgressTable)
+    .where(eq(playerProgressTable.name, name))
+    .limit(1);
+
+  if (!existing) {
+    res.status(404).json({ error: "Player not found." });
+    return;
+  }
+
+  // Generate a cryptographically random one-time reset token (16 uppercase hex chars)
+  const resetToken = randomBytes(8).toString("hex").toUpperCase();
+  const resetTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+  // Clear the existing password hash so the old password cannot be used while the
+  // reset token is pending. The player must redeem the token via POST /login/reset.
+  const [row] = await db
+    .update(playerProgressTable)
+    .set({ passwordHash: null, resetToken, resetTokenExpiry, updatedAt: new Date() })
+    .where(eq(playerProgressTable.name, name))
+    .returning();
+
+  res.json({
+    name: row.name,
+    score: row.score,
+    won: row.won,
+    times: row.times,
+    submitted: row.submitted,
+    updatedAt: row.updatedAt,
+    resetToken,
+    expiresAt: resetTokenExpiry.toISOString(),
+  });
 });
 
 export default router;

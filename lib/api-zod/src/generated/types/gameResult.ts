@@ -8,6 +8,8 @@
 
 export interface GameResult {
   id: number;
+  /** Canonical (lowercased) player name — used as the key for password reset. */
+  playerName: string;
   firstName: string;
   lastName: string;
   score: number;
