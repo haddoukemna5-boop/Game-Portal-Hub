@@ -10,9 +10,8 @@ function adminUsername() {
 }
 
 function adminPassword() {
-  // Keep the existing organizer passcode working while allowing deployments to
-  // replace it with ADMIN_PASSWORD without exposing it to the browser.
-  return process.env.ADMIN_PASSWORD || "changeme123";
+  const password = process.env.ADMIN_PASSWORD;
+  return password && password.length > 0 ? password : null;
 }
 
 function sessionSecret() {
@@ -64,7 +63,13 @@ router.post("/admin/login", (req, res): void => {
     return;
   }
 
-  if (username !== adminUsername() || password !== adminPassword()) {
+  const configuredPassword = adminPassword();
+  if (!configuredPassword) {
+    res.status(503).json({ error: "Admin authentication is not configured." });
+    return;
+  }
+
+  if (username !== adminUsername() || password !== configuredPassword) {
     res.status(401).json({ error: "Incorrect admin username or password." });
     return;
   }
