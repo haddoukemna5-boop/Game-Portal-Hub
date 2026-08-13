@@ -211,32 +211,74 @@ function ChallengeThree({ answers, done, add }: { answers: Record<string, boolea
   return <div className="space-y-8"><div className="rounded-2xl bg-[hsl(229_42%_11%)] p-5 text-sm text-[hsl(220_28%_95%)]"><div className="mono mb-3 text-[10px] uppercase tracking-[.2em] text-[hsl(334_86%_76%)]">Classification terminal · Three files waiting</div><p className="text-[hsl(223_16%_76%)]">Use C1 for internal, low-sensitivity information; C2 for confidential client material; C3 for non-public, market-sensitive information.</p></div>{classify('c3q1', 'Q1 · A bank-wide markets newsletter with no client or deal detail is…', [{ text: 'C3 — Strictly Confidential', correct: false, why: 'No client or deal detail and broadly public material make this C1.' }, { text: 'C2 — Confidential', correct: false, why: 'There is no client-identifiable data here, so it does not need C2 handling.' }, { text: 'C1 — Internal', correct: true, why: 'Correct. Bank-wide, low-sensitivity material is C1.' }])}{classify('c3q3', 'Q2 · A named client’s holdings and valuation report is…', [{ text: 'C2 — Confidential', correct: true, why: 'Correct. Named client and performance data are sensitive, but not necessarily market-moving.' }, { text: 'C3 — Strictly Confidential', correct: false, why: 'C3 is for the most sensitive market-moving material, such as a live deal.' }, { text: 'C1 — Internal', correct: false, why: 'Client-identifiable data needs more protection than C1.' }])}{classify('c3q4', 'Q3 · An undisclosed live acquisition known to five people is…', [{ text: 'C1 — Internal', correct: false, why: 'An undisclosed live acquisition is far beyond C1.' }, { text: 'C3 — Strictly Confidential', correct: true, why: 'Correct. Live, non-public, market-sensitive deal information is exactly what C3 protects.' }, { text: 'C2 — Confidential', correct: false, why: 'This is more than routine confidential client data — it is market-sensitive.' }])}<MultiQuestion id="c3q2" title="Q4 · Which handling statements are correct?" choices={multiChoices.c3q2} onEarn={add} completed={!!answers.c3q2} setCompleted={() => done('c3q2')} /></div>;
 }
 
+const DEEPFAKE_SCRIPT =
+  'Hi, this is David Chen, IT Security Director. Listen carefully — ' +
+  'we have a critical zero-day vulnerability actively hitting endpoints right now, and yours is flagged. ' +
+  'I need you to click the link I just sent in the chat and run that patch immediately. ' +
+  "Don't log a ticket — we simply don't have time. " +
+  "This thing is spreading fast. You've got maybe ten minutes before it reaches the network core. " +
+  'Just install it and message me the moment it finishes. Do it now, please.';
+
 function ChallengeFour({ answers, done, add }: { answers: Record<string, boolean>; done: (k: string) => void; add: (n: number) => void }) {
   const [callTime, setCallTime] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [hasPlayed, setHasPlayed] = useState(false);
   const [glitchVisible, setGlitchVisible] = useState(false);
+  const uttRef = useRef<SpeechSynthesisUtterance | null>(null);
 
+  // Call timer
   useEffect(() => {
     const t = setInterval(() => setCallTime((s) => s + 1), 1000);
     return () => clearInterval(t);
   }, []);
 
-  // Occasional face-edge glitch flicker
+  // Cleanup speech on unmount
+  useEffect(() => () => { window.speechSynthesis?.cancel(); }, []);
+
+  // Face-edge glitch — fires more often while playing
   useEffect(() => {
+    let cancelled = false;
     const flicker = () => {
+      if (cancelled) return;
       setGlitchVisible(true);
-      setTimeout(() => setGlitchVisible(false), 120 + Math.random() * 180);
+      setTimeout(() => setGlitchVisible(false), 100 + Math.random() * 160);
     };
-    const schedule = () => { setTimeout(() => { flicker(); schedule(); }, 4000 + Math.random() * 6000); };
+    const schedule = () => {
+      if (cancelled) return;
+      const delay = isPlaying ? 1500 + Math.random() * 2500 : 5000 + Math.random() * 7000;
+      setTimeout(() => { flicker(); schedule(); }, delay);
+    };
     schedule();
-  }, []);
+    return () => { cancelled = true; };
+  }, [isPlaying]);
+
+  const toggleVideo = () => {
+    if (!window.speechSynthesis) return;
+    if (isPlaying) {
+      window.speechSynthesis.cancel();
+      setIsPlaying(false);
+      return;
+    }
+    const utt = new SpeechSynthesisUtterance(DEEPFAKE_SCRIPT);
+    utt.rate = 0.92;
+    utt.pitch = 0.97;
+    utt.onend = () => { setIsPlaying(false); };
+    utt.onerror = () => { setIsPlaying(false); };
+    uttRef.current = utt;
+    setIsPlaying(true);
+    setHasPlayed(true);
+    window.speechSynthesis.speak(utt);
+  };
 
   const mins = String(Math.floor(callTime / 60)).padStart(2, '0');
   const secs = String(callTime % 60).padStart(2, '0');
+  const waveHeights = [4, 8, 14, 20, 26, 30, 22, 16, 28, 18, 10, 24, 32, 20, 14, 28, 22, 12, 18, 26, 16, 8, 20, 28, 14, 10, 24, 6];
 
   return (
     <div className="space-y-8">
       {/* Mock Teams video call */}
       <div className="relative overflow-hidden rounded-2xl bg-[hsl(229_42%_8%)] text-[hsl(220_28%_95%)]">
+
         {/* Top bar */}
         <div className="flex items-center justify-between px-4 py-2.5 bg-[hsl(229_42%_12%)]">
           <div className="flex items-center gap-2">
@@ -250,34 +292,81 @@ function ChallengeFour({ answers, done, add }: { answers: Record<string, boolean
         </div>
 
         {/* Video area */}
-        <div className="relative flex items-center justify-center bg-[hsl(229_42%_6%)]" style={{ minHeight: 220 }}>
-          {/* Caller avatar / simulated video */}
+        <div className="relative flex flex-col items-center justify-center gap-4 bg-[hsl(229_42%_6%)] py-8" style={{ minHeight: 260 }}>
+
+          {/* Caller avatar */}
           <div className="relative flex flex-col items-center gap-3">
             <div className="relative">
-              {/* Face silhouette with glitch overlay */}
-              <div className="grid size-24 place-items-center rounded-full bg-gradient-to-br from-[hsl(229_42%_22%)] to-[hsl(229_42%_14%)] ring-2 ring-[hsl(230_80%_55%/.4)]">
+              <div
+                className="grid size-24 place-items-center rounded-full bg-gradient-to-br from-[hsl(229_42%_22%)] to-[hsl(229_42%_14%)]"
+                style={{
+                  boxShadow: isPlaying
+                    ? '0 0 0 3px hsl(230 80% 60% / 0.8), 0 0 18px hsl(230 80% 55% / 0.4)'
+                    : '0 0 0 2px hsl(230 80% 55% / 0.3)',
+                  transition: 'box-shadow 0.2s',
+                }}
+              >
                 <span className="text-4xl select-none">👤</span>
               </div>
-              {/* Glitch artefact — edge flicker */}
+              {/* Glitch edge artefact */}
               {glitchVisible && (
-                <div className="pointer-events-none absolute inset-0 rounded-full" style={{ boxShadow: '0 0 0 3px hsl(334 86% 65% / 0.7)', filter: 'blur(1px)' }} />
+                <div
+                  className="pointer-events-none absolute inset-0 rounded-full"
+                  style={{ boxShadow: '0 0 0 3px hsl(334 86% 65% / 0.75), 2px -2px 0 2px hsl(195 100% 60% / 0.4)', filter: 'blur(0.5px)' }}
+                />
               )}
-              {/* "HD" badge */}
               <span className="mono absolute -bottom-1 -right-1 rounded bg-[hsl(229_42%_20%)] px-1 py-0.5 text-[8px] text-[hsl(220_28%_60%)]">HD</span>
             </div>
             <div className="text-center">
-              <div className="text-sm font-semibold">David Chen</div>
+              <div className="flex items-center justify-center gap-1.5">
+                <div className="text-sm font-semibold">David Chen</div>
+                {isPlaying && <span className="inline-block size-1.5 rounded-full bg-[hsl(var(--primary))] animate-pulse" />}
+              </div>
               <div className="mono text-[10px] text-[hsl(220_28%_60%)]">IT Security Director</div>
             </div>
           </div>
 
+          {/* Voice waveform — visible while playing */}
+          <div className={`flex h-7 items-end gap-[3px] transition-opacity duration-300 ${isPlaying ? 'opacity-100' : 'opacity-0'}`}>
+            {waveHeights.map((h, i) => (
+              <div
+                key={i}
+                className="w-[3px] rounded-sm bg-[hsl(var(--primary))]"
+                style={{
+                  height: `${h}px`,
+                  animation: isPlaying ? `waveBar 0.${6 + (i % 5)}s ease-in-out ${(i * 0.04).toFixed(2)}s infinite alternate` : 'none',
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Play/stop button overlay */}
+          <button
+            type="button"
+            onClick={toggleVideo}
+            className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold transition-all ${
+              isPlaying
+                ? 'bg-[hsl(334_86%_55%)] text-white'
+                : 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]'
+            }`}
+            data-testid="button-play-video"
+          >
+            {isPlaying
+              ? <><Square size={13} fill="currentColor" /> Stop</>
+              : <><Play size={14} fill="currentColor" /> {hasPlayed ? 'Replay video' : 'Play video'}</>}
+          </button>
+
+          {!hasPlayed && (
+            <p className="mono text-[10px] text-[hsl(220_28%_45%)]">Press play to hear the call</p>
+          )}
+
           {/* Small "you" pip */}
-          <div className="absolute bottom-3 right-3 flex size-16 items-center justify-center rounded-lg bg-[hsl(229_42%_18%)] ring-1 ring-[hsl(220_28%_30%)]">
-            <span className="text-2xl select-none">🧑‍💻</span>
+          <div className="absolute bottom-3 right-3 flex size-14 items-center justify-center rounded-lg bg-[hsl(229_42%_18%)] ring-1 ring-[hsl(220_28%_30%)]">
+            <span className="text-xl select-none">🧑‍💻</span>
           </div>
         </div>
 
-        {/* In-call chat message */}
+        {/* In-call chat */}
         <div className="border-t border-[hsl(220_28%_15%)] p-4 space-y-3">
           <div className="mono text-[10px] uppercase tracking-[.15em] text-[hsl(43_96%_65%)]">Chat · In this call</div>
           <div className="rounded-xl bg-[hsl(229_42%_14%)] p-3 text-sm">
@@ -296,17 +385,17 @@ function ChallengeFour({ answers, done, add }: { answers: Record<string, boolean
           </div>
         </div>
 
-        {/* Subtle warning hint */}
+        {/* Hint bar */}
         <div className="border-t border-[hsl(220_28%_15%)] px-4 py-2.5 flex items-center gap-2">
           <span className="inline-block size-1.5 rounded-full bg-[hsl(43_96%_55%)]" />
-          <span className="mono text-[10px] text-[hsl(220_28%_50%)]">Look carefully — something about this call is not right.</span>
+          <span className="mono text-[10px] text-[hsl(220_28%_50%)]">Play the video and listen carefully — something is not right.</span>
         </div>
       </div>
 
-      <SingleQuestion id="c4q1" title="Q1 · You get this unscheduled Teams call from someone who looks like your IT Security Director. What is most likely happening?" choices={singleChoices.c4q1} points={5} onCorrect={add} completed={!!answers.c4q1} setCompleted={() => done('c4q1')} />
+      <SingleQuestion id="c4q1" title="Q1 · You receive this unscheduled Teams call from someone who looks and sounds like your IT Security Director. What is most likely happening?" choices={singleChoices.c4q1} points={5} onCorrect={add} completed={!!answers.c4q1} setCompleted={() => done('c4q1')} />
       <SingleQuestion id="c4q2" title="Q2 · What should you do right now?" choices={[
-        { text: 'Click the link and install the patch — he looks and sounds real.', correct: false, why: 'Looking real is exactly what a deepfake is designed to achieve. Never install software based on an unscheduled video call alone.' },
-        { text: 'End the call and contact David Chen directly using his known number or by walking to his desk.', correct: true, why: 'Correct. Hanging up and verifying through a completely separate channel is the only safe move. A real emergency would still survive a 60-second verification.' },
+        { text: 'Click the link and install the patch — he looks and sounds real.', correct: false, why: 'Looking and sounding real is exactly what a deepfake is designed to achieve. Never install software based on an unscheduled call alone.' },
+        { text: 'End the call and contact David Chen directly using his known number or by walking to his desk.', correct: true, why: 'Correct. Hanging up and verifying through a completely separate channel is the only safe move. A real emergency would still survive a 60-second verification call.' },
         { text: 'Reply in the Teams chat to ask if the link is safe.', correct: false, why: 'If the account is compromised, the attacker controls the chat too. Same channel, same threat.' },
         { text: 'Ask a colleague sitting nearby whether they have heard of this vulnerability.', correct: false, why: 'A colleague cannot verify the call. End it and contact IT through a known, trusted route.' },
       ]} points={10} onCorrect={add} completed={!!answers.c4q2} setCompleted={() => done('c4q2')} />
