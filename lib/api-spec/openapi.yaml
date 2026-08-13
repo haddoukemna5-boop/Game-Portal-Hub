@@ -98,6 +98,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /reset-password:
+    post:
+      operationId: resetPassword
+      tags: [progress]
+      summary: Reset a player's password by username
+      description: Allows a player to set a new password using their username alone. No second factor — appropriate for an internal game.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordInput"
+      responses:
+        "200":
+          description: Password reset successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "400":
+          description: Missing fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Username not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /progress/{name}:
     get:
       operationId: getProgress
@@ -300,6 +331,10 @@ components:
         name:
           type: string
           minLength: 1
+          description: Unique username (login key, lowercase-normalised).
+        displayName:
+          type: string
+          description: Full display name shown on the leaderboard (optional on login, required on first registration).
         passwordHash:
           type: string
           minLength: 1
@@ -312,6 +347,8 @@ components:
         isNew:
           type: boolean
         name:
+          type: string
+        displayName:
           type: string
         score:
           type: number
@@ -330,11 +367,26 @@ components:
       required:
         - isNew
         - name
+        - displayName
         - score
         - won
         - times
         - submitted
         - updatedAt
+    ResetPasswordInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: Username of the account to reset.
+        newPasswordHash:
+          type: string
+          minLength: 1
+          description: SHA-256 hash of the new password.
+      required:
+        - name
+        - newPasswordHash
     PlayerProgress:
       type: object
       properties:

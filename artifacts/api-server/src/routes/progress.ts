@@ -32,14 +32,28 @@ function validateProgressBody(body: unknown): ProgressBody | null {
   };
 }
 
+function rowToLoginResult(row: typeof playerProgressTable.$inferSelect, isNew: boolean) {
+  return {
+    isNew,
+    name: row.name,
+    displayName: row.displayName ?? row.name,
+    score: row.score,
+    won: row.won,
+    times: row.times,
+    submitted: row.submitted,
+    updatedAt: row.updatedAt,
+  };
+}
+
 // POST /login — create account or verify password, then return progress
 router.post("/login", async (req, res): Promise<void> => {
   const body = req.body as Record<string, unknown>;
   const rawName = typeof body.name === "string" ? body.name.trim() : "";
   const passwordHash = typeof body.passwordHash === "string" ? body.passwordHash : "";
+  const displayName = typeof body.displayName === "string" ? body.displayName.trim() : "";
 
   if (!rawName || !passwordHash) {
-    res.status(400).json({ error: "Name and password are required." });
+    res.status(400).json({ error: "Username and password are required." });
     return;
   }
 
@@ -52,17 +66,16 @@ router.post("/login", async (req, res): Promise<void> => {
     .limit(1);
 
   if (!existing) {
-    // New user — create account with the supplied password hash
+    // New user — create account with the supplied password hash and display name
     const [row] = await db
       .insert(playerProgressTable)
-      .values({ name, passwordHash, score: 0, won: [], times: {}, submitted: false, updatedAt: new Date() })
+      .values({ name, displayName: displayName || name, passwordHash, score: 0, won: [], times: {}, submitted: false, updatedAt: new Date() })
       .returning();
-    res.json({ isNew: true, name: row.name, score: row.score, won: row.won, times: row.times, submitted: row.submitted, updatedAt: row.updatedAt });
+    res.json(rowToLoginResult(row, true));
     return;
   }
 
   // Existing account must have a stored password; accounts without one are locked.
-  // (No unauthenticated hash-adoption — that path is an account-takeover vector.)
   if (!existing.passwordHash) {
     res.status(401).json({ error: "Incorrect password." });
     return;
@@ -73,15 +86,48 @@ router.post("/login", async (req, res): Promise<void> => {
     return;
   }
 
-  res.json({
-    isNew: false,
-    name: existing.name,
-    score: existing.score,
-    won: existing.won,
-    times: existing.times,
-    submitted: existing.submitted,
-    updatedAt: existing.updatedAt,
-  });
+  // Update display name if a non-empty one was supplied and it differs from stored
+  if (displayName && displayName !== existing.displayName) {
+    await db
+      .update(playerProgressTable)
+      .set({ displayName })
+      .where(eq(playerProgressTable.name, name));
+    existing.displayName = displayName;
+  }
+
+  res.json(rowToLoginResult(existing, false));
+});
+
+// POST /reset-password — set a new password by username (no second factor)
+router.post("/reset-password", async (req, res): Promise<void> => {
+  const body = req.body as Record<string, unknown>;
+  const rawName = typeof body.name === "string" ? body.name.trim() : "";
+  const newPasswordHash = typeof body.newPasswordHash === "string" ? body.newPasswordHash.trim() : "";
+
+  if (!rawName || !newPasswordHash) {
+    res.status(400).json({ error: "Username and new password are required." });
+    return;
+  }
+
+  const name = rawName.toLowerCase();
+
+  const [existing] = await db
+    .select({ id: playerProgressTable.id })
+    .from(playerProgressTable)
+    .where(eq(playerProgressTable.name, name))
+    .limit(1);
+
+  if (!existing) {
+    res.status(404).json({ error: "No account found with that username." });
+    return;
+  }
+
+  await db
+    .update(playerProgressTable)
+    .set({ passwordHash: newPasswordHash })
+    .where(eq(playerProgressTable.name, name));
+
+  res.json({ error: "Password reset successfully." });
 });
 
 // PUT /progress/:name — save progress (requires passwordHash to authenticate the caller)

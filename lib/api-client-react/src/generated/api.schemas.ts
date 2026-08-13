@@ -30,9 +30,15 @@ export interface GameResult {
 }
 
 export interface GameResultInput {
-  /** @minLength 1 */
+  /**
+     * The canonical player name (lowercased) used to look up the player record for authentication.
+     * @minLength 1
+     */
   playerName: string;
-  /** @minLength 1 */
+  /**
+     * SHA-256 hash of the player's password, used to verify caller identity.
+     * @minLength 1
+     */
   passwordHash: string;
   /** @minLength 1 */
   firstName: string;
@@ -72,8 +78,13 @@ export interface ErrorResponse {
 }
 
 export interface LoginInput {
-  /** @minLength 1 */
+  /**
+     * Unique username (login key, lowercase-normalised).
+     * @minLength 1
+     */
   name: string;
+  /** Full display name shown on the leaderboard (optional on login, required on first registration). */
+  displayName?: string;
   /** @minLength 1 */
   passwordHash: string;
 }
@@ -83,11 +94,25 @@ export type LoginResultTimes = { [key: string]: unknown };
 export interface LoginResult {
   isNew: boolean;
   name: string;
+  displayName: string;
   score: number;
   won: number[];
   times: LoginResultTimes;
   submitted: boolean;
   updatedAt: string;
+}
+
+export interface ResetPasswordInput {
+  /**
+     * Username of the account to reset.
+     * @minLength 1
+     */
+  name: string;
+  /**
+     * SHA-256 hash of the new password.
+     * @minLength 1
+     */
+  newPasswordHash: string;
 }
 
 export type PlayerProgressTimes = { [key: string]: unknown };

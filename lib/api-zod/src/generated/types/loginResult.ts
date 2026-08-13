@@ -10,6 +10,7 @@ import type { LoginResultTimes } from './loginResultTimes';
 export interface LoginResult {
   isNew: boolean;
   name: string;
+  displayName: string;
   score: number;
   won: number[];
   times: LoginResultTimes;

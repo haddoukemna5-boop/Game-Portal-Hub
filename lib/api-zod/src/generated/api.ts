@@ -44,14 +44,16 @@ export const ListResultsResponse = zod.array(ListResultsResponseItem)
  */
 
 
+
+
 export const submitResultBodyScoreMin = 0;
 
 
 
 
 export const SubmitResultBody = zod.object({
-  "playerName": zod.string().min(1),
-  "passwordHash": zod.string().min(1),
+  "playerName": zod.string().min(1).describe('The canonical player name (lowercased) used to look up the player record for authentication.'),
+  "passwordHash": zod.string().min(1).describe('SHA-256 hash of the player\'s password, used to verify caller identity.'),
   "firstName": zod.string().min(1),
   "lastName": zod.string().min(1),
   "score": zod.number().min(submitResultBodyScoreMin),
@@ -89,18 +91,38 @@ export const SubmitResultResponse = zod.object({
 
 
 export const LoginBody = zod.object({
-  "name": zod.string().min(1),
+  "name": zod.string().min(1).describe('Unique username (login key, lowercase-normalised).'),
+  "displayName": zod.string().optional().describe('Full display name shown on the leaderboard (optional on login, required on first registration).'),
   "passwordHash": zod.string().min(1)
 })
 
 export const LoginResponse = zod.object({
   "isNew": zod.boolean(),
   "name": zod.string(),
+  "displayName": zod.string(),
   "score": zod.number(),
   "won": zod.array(zod.number()),
   "times": zod.record(zod.string(), zod.unknown()),
   "submitted": zod.boolean(),
   "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * Allows a player to set a new password using their username alone. No second factor — appropriate for an internal game.
+ * @summary Reset a player's password by username
+ */
+
+
+
+
+export const ResetPasswordBody = zod.object({
+  "name": zod.string().min(1).describe('Username of the account to reset.'),
+  "newPasswordHash": zod.string().min(1).describe('SHA-256 hash of the new password.')
+})
+
+export const ResetPasswordResponse = zod.object({
+  "error": zod.string()
 })
 
 
@@ -129,6 +151,7 @@ export const GetProgressResponse = zod.object({
 export const SaveProgressParams = zod.object({
   "name": zod.coerce.string()
 })
+
 
 
 export const saveProgressBodyScoreMin = 0;

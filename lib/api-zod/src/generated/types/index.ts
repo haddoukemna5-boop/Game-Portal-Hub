@@ -17,4 +17,5 @@ export * from './playerProgress';
 export * from './playerProgressInput';
 export * from './playerProgressInputTimes';
 export * from './playerProgressTimes';
+export * from './resetPasswordInput';
 export * from './resultsSummary';

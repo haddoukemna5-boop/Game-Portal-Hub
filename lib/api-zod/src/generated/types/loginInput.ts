@@ -7,8 +7,13 @@
  */
 
 export interface LoginInput {
-  /** @minLength 1 */
+  /**
+     * Unique username (login key, lowercase-normalised).
+     * @minLength 1
+     */
   name: string;
+  /** Full display name shown on the leaderboard (optional on login, required on first registration). */
+  displayName?: string;
   /** @minLength 1 */
   passwordHash: string;
 }

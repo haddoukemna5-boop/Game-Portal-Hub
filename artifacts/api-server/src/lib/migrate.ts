@@ -65,6 +65,12 @@ export async function runMigrations(): Promise<void> {
         ALTER COLUMN player_name SET NOT NULL;
     `);
 
+    // ── Migration: add display_name to player_progress ──
+    await client.query(`
+      ALTER TABLE player_progress
+        ADD COLUMN IF NOT EXISTS display_name text;
+    `);
+
     await client.query("COMMIT");
     logger.info("Database migrations applied successfully");
   } catch (err) {

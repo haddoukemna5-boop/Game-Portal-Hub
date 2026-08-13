@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import {
   getGetResultsSummaryQueryKey, getHealthCheckQueryKey, getListResultsQueryKey,
-  useGetResultsSummary, useHealthCheck, useListResults, useLogin, useSaveProgress, useSubmitResult,
+  useGetResultsSummary, useHealthCheck, useListResults, useLogin, useResetPassword, useSaveProgress, useSubmitResult,
 } from '@workspace/api-client-react';
 import type { GameResultInput } from '@workspace/api-client-react';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -32,7 +32,7 @@ const CHALLENGES = [
 type ChallengeId = (typeof CHALLENGES)[number]['id'];
 type Choice = { text: string; correct: boolean; why: string };
 type MultiChoice = { text: string; correct: boolean };
-type Progress = { name: string; score: number; won: number[]; times: Record<string, { start: number; seconds: number | null }>; submitted?: boolean };
+type Progress = { name: string; displayName?: string; score: number; won: number[]; times: Record<string, { start: number; seconds: number | null }>; submitted?: boolean };
 
 const singleChoices: Record<string, Choice[]> = {
   c1q1: [
@@ -297,7 +297,7 @@ function LockedScreen({ challenge, onBack }: { challenge: ChallengeId; onBack: (
 function Finale({ progress, setProgress, onReset, passwordHash }: { progress: Progress; setProgress: (p: Progress) => void; onReset: () => void; passwordHash: string }) {
   const [code, setCode] = useState(''); const [opened, setOpened] = useState(progress.submitted || false); const [error, setError] = useState(''); const submit = useSubmitResult(); const qc = useQueryClient();
   const times = [0, 1, 2, 3].map((i) => progress.times[`c${i + 1}`]?.seconds ?? null); const total = times.every((x) => x != null) ? times.reduce((a, x) => a + (x || 0), 0) : null;
-  const unlock = () => { if (code.trim().toUpperCase() !== 'RISK') { setError('Not quite. Shift U-L-V-N three places backward.'); return; } setOpened(true); setError(''); const next = { ...progress, submitted: true }; setProgress(next); const payload: GameResultInput = { playerName: progress.name.trim().toLowerCase(), passwordHash, firstName: progress.name.split(' ')[0] || progress.name, lastName: progress.name.split(' ').slice(1).join(' ') || 'Operator', score: progress.score, rank: rankFor(progress.score), timeC1: times[0], timeC2: times[1], timeC3: times[2], timeC4: times[3], totalTime: total, isTest: PREVIEW }; submit.mutate({ data: payload }, { onSuccess: () => { void qc.invalidateQueries({ queryKey: getListResultsQueryKey() }); void qc.invalidateQueries({ queryKey: getGetResultsSummaryQueryKey() }); } }); };
+  const unlock = () => { if (code.trim().toUpperCase() !== 'RISK') { setError('Not quite. Shift U-L-V-N three places backward.'); return; } setOpened(true); setError(''); const next = { ...progress, submitted: true }; setProgress(next); const label = progress.displayName || progress.name; const payload: GameResultInput = { playerName: progress.name.trim().toLowerCase(), passwordHash, firstName: label.split(' ')[0] || label, lastName: label.split(' ').slice(1).join(' ') || 'Operator', score: progress.score, rank: rankFor(progress.score), timeC1: times[0], timeC2: times[1], timeC3: times[2], timeC4: times[3], totalTime: total, isTest: PREVIEW }; submit.mutate({ data: payload }, { onSuccess: () => { void qc.invalidateQueries({ queryKey: getListResultsQueryKey() }); void qc.invalidateQueries({ queryKey: getGetResultsSummaryQueryKey() }); } }); };
   return <div className="screen-enter mx-auto w-full max-w-4xl px-5 pb-16 md:px-8"><div className="soft-card rounded-3xl p-7 text-center md:p-12">{!opened ? <><div className="mono text-[10px] uppercase tracking-[.2em] text-[hsl(var(--primary))]">Four keys collected</div><h1 className="display mt-3 text-4xl font-bold md:text-5xl">One last lock</h1><p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-[hsl(var(--muted-foreground))]">The letters are encrypted. A Caesar cipher shifted each letter three places forward. Reverse the shift and open the vault.</p><div className="my-9 flex justify-center gap-2 md:gap-3">{KEY_LETTERS.map((key) => <div key={key} className="key-pill grid size-16 place-items-center rounded-2xl md:size-20"><span className="display text-3xl font-bold">{key}</span></div>)}</div><div className="mx-auto max-w-xl rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--muted)/.45)] p-5 text-left text-sm leading-7"><b className="display">Cipher note</b><br />U → T → S → <b>R</b>. Apply the same three-step backward move to every key. The answer is a word every good security operator keeps top of mind.</div><div className="mx-auto mt-7 flex max-w-sm flex-col gap-3"><input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} onKeyDown={(e) => e.key === 'Enter' && unlock()} maxLength={10} placeholder="TYPE THE WORD" className="mono rounded-xl border border-[hsl(var(--border))] bg-white/70 px-4 py-3 text-center text-lg tracking-[.3em] outline-none focus:border-[hsl(var(--primary))]" aria-label="Deciphered word" data-testid="input-vault-code" /><button type="button" onClick={unlock} disabled={submit.isPending} className="btn-secondary inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold" data-testid="button-unlock-vault"><Unlock size={16} /> {submit.isPending ? 'Saving result…' : 'Unlock the vault'}</button>{error && <div className="rounded-xl bg-[hsl(var(--destructive)/.1)] p-3 text-sm text-[hsl(var(--destructive))]" role="alert">{error}</div>}</div></> : <><div className="mx-auto mb-5 grid size-16 place-items-center rounded-2xl bg-[hsl(43_96%_55%/.18)] text-[hsl(43_70%_35%)]"><Trophy size={29} /></div><div className="mono text-[10px] uppercase tracking-[.2em] text-[hsl(43_70%_35%)]">Expedition complete</div><h1 className="display mt-3 text-4xl font-bold">The vault opens</h1><p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-[hsl(var(--muted-foreground))]">Four keys turned, one cipher cracked, four safer habits learned. The real treasure is knowing when to slow down and verify.</p><div className="my-8 flex justify-center gap-2 md:gap-3">{'RISK'.split('').map((key) => <div key={key} className="key-pill won grid size-16 place-items-center rounded-2xl md:size-20"><span className="display text-3xl font-bold">{key}</span></div>)}</div><div className="grid gap-3 sm:grid-cols-2"><div className="rounded-2xl bg-[hsl(var(--primary)/.1)] p-5"><div className="display text-4xl font-bold text-[hsl(var(--primary))]">{progress.score}</div><div className="mono mt-1 text-[10px] uppercase tracking-[.17em] text-[hsl(var(--muted-foreground))]">Points earned</div></div><div className="rounded-2xl bg-[hsl(var(--secondary)/.1)] p-5"><div className="display text-2xl font-bold text-[hsl(var(--secondary))]">{rankFor(progress.score)}</div><div className="mono mt-2 text-[10px] uppercase tracking-[.17em] text-[hsl(var(--muted-foreground))]">Field rank</div></div></div><div className="mt-4 grid grid-cols-2 gap-2 text-left md:grid-cols-5">{times.map((time, i) => <div key={i} className="rounded-xl border border-[hsl(var(--border))] p-3"><div className="mono text-[10px] text-[hsl(var(--muted-foreground))]">C{i + 1}</div><b className="mono text-sm">{formatDuration(time)}</b></div>)}<div className="rounded-xl border border-[hsl(var(--border))] p-3"><div className="mono text-[10px] text-[hsl(var(--muted-foreground))]">TOTAL</div><b className="mono text-sm">{formatDuration(total)}</b></div></div>{submit.isError && <p className="mt-5 text-sm text-[hsl(var(--destructive))]">Your vault opened, but the result could not sync. It will remain saved on this device.</p>}<button type="button" onClick={onReset} className="btn-quiet mt-8 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm" data-testid="button-play-again"><RotateCcw size={15} /> Play again</button></>}</div></div>;
 }
 
@@ -307,11 +307,20 @@ function PlayerPage() {
   const [started, setStarted] = useState(false);
   const [screen, setScreen] = useState<string>('map');
   const [locked, setLocked] = useState<ChallengeId | null>(null);
+  const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [welcomeBack, setWelcomeBack] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [resetUsername, setResetUsername] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [resetError, setResetError] = useState('');
+  const [resetSuccess, setResetSuccess] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
   const loginMutation = useLogin();
+  const resetMutation = useResetPassword();
   const saveProgress = useSaveProgress();
   const prevWonLen = useRef(progress.won.length);
   const passwordHashRef = useRef('');
@@ -337,17 +346,19 @@ function PlayerPage() {
 
   const start = async (e: FormEvent) => {
     e.preventDefault();
-    const trimmed = name.trim();
+    const username = name.trim().toLowerCase();
+    const fullName = displayName.trim();
     const pwd = password.trim();
-    if (!trimmed || !pwd) return;
+    if (!username || !fullName || !pwd) return;
     setLoadingProfile(true);
     setLoginError('');
     try {
       const hash = await hashPassword(pwd);
       passwordHashRef.current = hash;
-      const result = await loginMutation.mutateAsync({ data: { name: trimmed.toLowerCase(), passwordHash: hash } });
+      const result = await loginMutation.mutateAsync({ data: { name: username, displayName: fullName, passwordHash: hash } });
       const restored: Progress = {
-        name: trimmed,
+        name: username,
+        displayName: result.displayName || fullName,
         score: result.score,
         won: result.won as number[],
         times: result.times as Progress['times'],
@@ -370,7 +381,29 @@ function PlayerPage() {
     }
   };
 
-  const reset = () => { localStorage.removeItem('cth_progress'); setProgress({ name: '', score: 0, won: [], times: {} }); setName(''); setPassword(''); setStarted(false); setScreen('map'); setLocked(null); setWelcomeBack(false); setLoginError(''); prevWonLen.current = 0; };
+  const doResetPassword = async (e: FormEvent) => {
+    e.preventDefault();
+    if (newPassword.trim().length < 4) { setResetError('Password must be at least 4 characters.'); return; }
+    if (newPassword.trim() !== confirmPassword.trim()) { setResetError('Passwords do not match.'); return; }
+    setResetLoading(true);
+    setResetError('');
+    try {
+      const hash = await hashPassword(newPassword.trim());
+      await resetMutation.mutateAsync({ data: { name: resetUsername.trim().toLowerCase(), newPasswordHash: hash } });
+      setResetSuccess(true);
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } }).response?.status;
+      if (status === 404) {
+        setResetError('No account found with that username. Check the spelling and try again.');
+      } else {
+        setResetError('Could not connect. Check your connection and try again.');
+      }
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const reset = () => { localStorage.removeItem('cth_progress'); setProgress({ name: '', score: 0, won: [], times: {} }); setName(''); setDisplayName(''); setPassword(''); setStarted(false); setScreen('map'); setLocked(null); setWelcomeBack(false); setLoginError(''); setForgotMode(false); setResetUsername(''); setNewPassword(''); setConfirmPassword(''); setResetError(''); setResetSuccess(false); prevWonLen.current = 0; };
   const pick = (id: ChallengeId) => { const i = CHALLENGES.findIndex((c) => c.id === id); if (!isUnlocked(id) || (i > 0 && !progress.won.includes(i - 1))) { setLocked(id); setScreen('locked'); return; } const next = progress.times[id] ? progress : { ...progress, times: { ...progress.times, [id]: { start: Date.now(), seconds: null } } }; update(next); setScreen(id); };
 
   if (!started) return (
@@ -384,18 +417,55 @@ function PlayerPage() {
             <p className="mt-6 max-w-xl text-base leading-8 text-[hsl(var(--muted-foreground))]">A short, story-driven cyber-awareness expedition for teams. Spot the signal, learn the habit, earn the key — then beat the cipher.</p>
             <div className="mt-8 flex flex-wrap gap-4 text-sm text-[hsl(var(--muted-foreground))]"><span className="inline-flex items-center gap-2"><Clock3 size={16} className="text-[hsl(var(--primary))]" /> 10–15 min</span><span className="inline-flex items-center gap-2"><Zap size={16} className="text-[hsl(43_96%_50%)]" /> 100 points</span><span className="inline-flex items-center gap-2"><Trophy size={16} className="text-[hsl(var(--secondary))]" /> Team leaderboard</span></div>
           </div>
-          <form onSubmit={start} className="soft-card screen-enter rounded-3xl p-7 md:p-9">
-            <div className="mb-7 flex items-center justify-between"><div><div className="mono text-[10px] uppercase tracking-[.2em] text-[hsl(var(--muted-foreground))]">Create or sign in</div><h2 className="display mt-1 text-2xl font-bold">Your mission profile</h2></div><div className="grid size-12 place-items-center rounded-2xl bg-[hsl(var(--foreground))] text-[hsl(var(--primary))]"><KeyRound size={20} /></div></div>
-            <label className="mono text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]" htmlFor="player-name">Full name</label>
-            <input id="player-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Alex Morgan" className="mt-2 w-full rounded-xl border border-[hsl(var(--border))] bg-white/70 px-4 py-3.5 outline-none transition focus:border-[hsl(var(--primary))]" data-testid="input-player-name" required disabled={loadingProfile} autoComplete="username" />
-            <label className="mono mt-4 block text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]" htmlFor="player-password">Password</label>
-            <input id="player-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Choose or enter your password" className="mt-2 w-full rounded-xl border border-[hsl(var(--border))] bg-white/70 px-4 py-3.5 outline-none transition focus:border-[hsl(var(--primary))]" data-testid="input-player-password" required disabled={loadingProfile} autoComplete="current-password" minLength={4} />
-            {loginError && <div className="mt-3 rounded-xl bg-[hsl(var(--destructive)/.1)] px-4 py-3 text-sm text-[hsl(var(--destructive))]" role="alert">{loginError}</div>}
-            <button type="submit" disabled={loadingProfile} className="btn-primary mt-4 flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-sm font-bold" data-testid="button-start-hunt">
-              {loadingProfile ? <><Loader2 size={16} className="animate-spin" /> Signing in…</> : <>Start the hunt <ArrowRight size={17} /></>}
-            </button>
-            <p className="mt-4 text-center text-xs leading-5 text-[hsl(var(--muted-foreground))]">New here? Enter any password to create your profile. Returning? Use the same name and password to pick up where you left off.</p>
-          </form>
+          <div className="soft-card screen-enter rounded-3xl p-7 md:p-9">
+            {!forgotMode ? (
+              <form onSubmit={start}>
+                <div className="mb-7 flex items-center justify-between"><div><div className="mono text-[10px] uppercase tracking-[.2em] text-[hsl(var(--muted-foreground))]">Create or sign in</div><h2 className="display mt-1 text-2xl font-bold">Your mission profile</h2></div><div className="grid size-12 place-items-center rounded-2xl bg-[hsl(var(--foreground))] text-[hsl(var(--primary))]"><KeyRound size={20} /></div></div>
+                <label className="mono text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]" htmlFor="player-display-name">Full name</label>
+                <input id="player-display-name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="e.g. Alex Morgan" className="mt-2 w-full rounded-xl border border-[hsl(var(--border))] bg-white/70 px-4 py-3.5 outline-none transition focus:border-[hsl(var(--primary))]" data-testid="input-player-display-name" required disabled={loadingProfile} autoComplete="name" />
+                <label className="mono mt-4 block text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]" htmlFor="player-name">Username</label>
+                <input id="player-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. alex.morgan" className="mt-2 w-full rounded-xl border border-[hsl(var(--border))] bg-white/70 px-4 py-3.5 outline-none transition focus:border-[hsl(var(--primary))]" data-testid="input-player-name" required disabled={loadingProfile} autoComplete="username" />
+                <label className="mono mt-4 block text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]" htmlFor="player-password">Password</label>
+                <input id="player-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Choose or enter your password" className="mt-2 w-full rounded-xl border border-[hsl(var(--border))] bg-white/70 px-4 py-3.5 outline-none transition focus:border-[hsl(var(--primary))]" data-testid="input-player-password" required disabled={loadingProfile} autoComplete="current-password" minLength={4} />
+                {loginError && <div className="mt-3 rounded-xl bg-[hsl(var(--destructive)/.1)] px-4 py-3 text-sm text-[hsl(var(--destructive))]" role="alert">{loginError}</div>}
+                <button type="submit" disabled={loadingProfile} className="btn-primary mt-4 flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-sm font-bold" data-testid="button-start-hunt">
+                  {loadingProfile ? <><Loader2 size={16} className="animate-spin" /> Signing in…</> : <>Start the hunt <ArrowRight size={17} /></>}
+                </button>
+                <div className="mt-4 flex items-center justify-between text-xs text-[hsl(var(--muted-foreground))]">
+                  <span>New? Enter any password to create a profile.</span>
+                  <button type="button" onClick={() => { setForgotMode(true); setLoginError(''); setResetUsername(name); }} className="underline decoration-dotted underline-offset-4 hover:text-[hsl(var(--foreground))]">Forgot password?</button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={doResetPassword}>
+                <div className="mb-7 flex items-center justify-between"><div><div className="mono text-[10px] uppercase tracking-[.2em] text-[hsl(var(--muted-foreground))]">Account recovery</div><h2 className="display mt-1 text-2xl font-bold">Reset your password</h2></div><div className="grid size-12 place-items-center rounded-2xl bg-[hsl(var(--foreground))] text-[hsl(var(--primary))]"><KeyRound size={20} /></div></div>
+                {resetSuccess ? (
+                  <div className="rounded-2xl bg-[hsl(var(--primary)/.08)] border border-[hsl(var(--primary)/.3)] px-5 py-6 text-center">
+                    <CheckCircle2 size={28} className="mx-auto mb-3 text-[hsl(var(--primary))]" />
+                    <p className="font-bold">Password reset!</p>
+                    <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">You can now sign in with your new password.</p>
+                    <button type="button" onClick={() => { setForgotMode(false); setResetSuccess(false); setNewPassword(''); setConfirmPassword(''); setResetUsername(''); }} className="btn-primary mt-5 flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold">Back to sign in <ArrowRight size={16} /></button>
+                  </div>
+                ) : (
+                  <>
+                    <label className="mono text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]" htmlFor="reset-username">Username</label>
+                    <input id="reset-username" value={resetUsername} onChange={(e) => setResetUsername(e.target.value)} placeholder="e.g. alex.morgan" className="mt-2 w-full rounded-xl border border-[hsl(var(--border))] bg-white/70 px-4 py-3.5 outline-none transition focus:border-[hsl(var(--primary))]" data-testid="input-reset-username" required disabled={resetLoading} autoComplete="username" />
+                    <label className="mono mt-4 block text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]" htmlFor="reset-new-password">New password</label>
+                    <input id="reset-new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Choose a new password" className="mt-2 w-full rounded-xl border border-[hsl(var(--border))] bg-white/70 px-4 py-3.5 outline-none transition focus:border-[hsl(var(--primary))]" data-testid="input-reset-new-password" required disabled={resetLoading} autoComplete="new-password" minLength={4} />
+                    <label className="mono mt-4 block text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]" htmlFor="reset-confirm-password">Confirm new password</label>
+                    <input id="reset-confirm-password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Re-enter your new password" className="mt-2 w-full rounded-xl border border-[hsl(var(--border))] bg-white/70 px-4 py-3.5 outline-none transition focus:border-[hsl(var(--primary))]" data-testid="input-reset-confirm-password" required disabled={resetLoading} autoComplete="new-password" minLength={4} />
+                    {resetError && <div className="mt-3 rounded-xl bg-[hsl(var(--destructive)/.1)] px-4 py-3 text-sm text-[hsl(var(--destructive))]" role="alert">{resetError}</div>}
+                    <button type="submit" disabled={resetLoading} className="btn-primary mt-4 flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-sm font-bold" data-testid="button-reset-password">
+                      {resetLoading ? <><Loader2 size={16} className="animate-spin" /> Resetting…</> : <>Reset password <ArrowRight size={17} /></>}
+                    </button>
+                    <div className="mt-4 text-center">
+                      <button type="button" onClick={() => { setForgotMode(false); setResetError(''); }} className="text-xs text-[hsl(var(--muted-foreground))] underline decoration-dotted underline-offset-4 hover:text-[hsl(var(--foreground))]"><ArrowLeft size={12} className="mr-1 inline" />Back to sign in</button>
+                    </div>
+                  </>
+                )}
+              </form>
+            )}
+          </div>
         </div>
       </main>
     </div>
@@ -410,7 +480,7 @@ function PlayerPage() {
             {welcomeBack && (
               <div className="mb-6 flex items-center gap-3 rounded-2xl border border-[hsl(43_96%_55%/.35)] bg-[hsl(43_96%_55%/.09)] px-5 py-3.5">
                 <Trophy size={16} className="shrink-0 text-[hsl(43_70%_40%)]" />
-                <p className="text-sm"><b>Welcome back, {progress.name.split(' ')[0]}!</b> Your progress has been restored — {progress.won.length} of 4 keys secured.</p>
+                <p className="text-sm"><b>Welcome back, {(progress.displayName || progress.name).split(' ')[0]}!</b> Your progress has been restored — {progress.won.length} of 4 keys secured.</p>
                 <button type="button" onClick={() => setWelcomeBack(false)} className="ml-auto shrink-0 text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"><X size={15} /></button>
               </div>
             )}
