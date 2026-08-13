@@ -24,6 +24,8 @@ import type {
   GameResult,
   GameResultInput,
   HealthStatus,
+  PlayerProgress,
+  PlayerProgressInput,
   ResultsSummary
 } from './api.schemas';
 
@@ -280,6 +282,157 @@ export const useSubmitResult = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getSubmitResultMutationOptions(options));
+    }
+
+export const getGetProgressUrl = (name: string,) => {
+
+
+
+
+  return `/api/progress/${name}`
+}
+
+/**
+ * Returns the saved progress for a player by name. Returns 404 if not found.
+ * @summary Get player progress
+ */
+export const getProgress = async (name: string, options?: Parameters<typeof customFetch>[1]): Promise<PlayerProgress> => {
+
+  return customFetch<PlayerProgress>(getGetProgressUrl(name),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProgressQueryKey = (name: string,) => {
+    return [
+    `/api/progress/${name}`
+    ] as const;
+    }
+
+
+export const getGetProgressQueryOptions = <TData = Awaited<ReturnType<typeof getProgress>>, TError = ErrorType<ErrorResponse>>(name: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProgress>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProgressQueryKey(name);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProgress>>> = ({ signal }) => getProgress(name, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: name !== null && name !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProgress>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProgressQueryResult = NonNullable<Awaited<ReturnType<typeof getProgress>>>
+export type GetProgressQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get player progress
+ */
+
+export function useGetProgress<TData = Awaited<ReturnType<typeof getProgress>>, TError = ErrorType<ErrorResponse>>(
+ name: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProgress>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProgressQueryOptions(name,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveProgressUrl = (name: string,) => {
+
+
+
+
+  return `/api/progress/${name}`
+}
+
+/**
+ * Upserts progress for a player.
+ * @summary Save player progress
+ */
+export const saveProgress = async (name: string,
+    playerProgressInput: PlayerProgressInput, options?: Parameters<typeof customFetch>[1]): Promise<PlayerProgress> => {
+
+  return customFetch<PlayerProgress>(getSaveProgressUrl(name),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(playerProgressInput)
+  }
+);}
+
+
+
+
+
+export const getSaveProgressMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveProgress>>, TError,{name: string;data: BodyType<PlayerProgressInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveProgress>>, TError,{name: string;data: BodyType<PlayerProgressInput>}, TContext> => {
+
+const mutationKey = ['saveProgress'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveProgress>>, {name: string;data: BodyType<PlayerProgressInput>}> = (props) => {
+          const {name,data} = props ?? {};
+
+          return  saveProgress(name,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveProgressMutationResult = NonNullable<Awaited<ReturnType<typeof saveProgress>>>
+    export type SaveProgressMutationBody = BodyType<PlayerProgressInput>
+    export type SaveProgressMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Save player progress
+ */
+export const useSaveProgress = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveProgress>>, TError,{name: string;data: BodyType<PlayerProgressInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveProgress>>,
+        TError,
+        {name: string;data: BodyType<PlayerProgressInput>},
+        TContext
+      > => {
+      return useMutation(getSaveProgressMutationOptions(options));
     }
 
 export const getGetResultsSummaryUrl = () => {

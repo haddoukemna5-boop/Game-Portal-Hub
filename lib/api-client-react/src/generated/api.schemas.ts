@@ -67,3 +67,26 @@ export interface ErrorResponse {
   error: string;
 }
 
+export type PlayerProgressTimes = { [key: string]: unknown };
+
+export interface PlayerProgress {
+  name: string;
+  score: number;
+  won: number[];
+  times: PlayerProgressTimes;
+  submitted: boolean;
+  updatedAt: string;
+}
+
+export type PlayerProgressInputTimes = { [key: string]: unknown };
+
+export interface PlayerProgressInput {
+  /** @minLength 1 */
+  name: string;
+  /** @minimum 0 */
+  score: number;
+  won: number[];
+  times: PlayerProgressInputTimes;
+  submitted: boolean;
+}
+

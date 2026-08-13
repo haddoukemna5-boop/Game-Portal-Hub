@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { Link, Route, Switch } from 'wouter';
 import {
   ArrowLeft, ArrowRight, BarChart3, Check, CheckCircle2, ChevronDown, ChevronUp,
-  Clock3, Download, LockKeyhole, MapPin, RefreshCw, RotateCcw, Search,
-  Shield, Sparkles, Terminal, Trophy, Unlock, X, Zap,
+  Clock3, Download, Loader2, LockKeyhole, MapPin, Play, RefreshCw, RotateCcw, Search,
+  Shield, Square, Terminal, Trophy, Unlock, X, Zap,
 } from 'lucide-react';
 import {
   getGetResultsSummaryQueryKey, getHealthCheckQueryKey, getListResultsQueryKey,
-  useGetResultsSummary, useHealthCheck, useListResults, useSubmitResult,
+  getProgress,
+  useGetResultsSummary, useHealthCheck, useListResults, useSaveProgress, useSubmitResult,
 } from '@workspace/api-client-react';
 import type { GameResultInput } from '@workspace/api-client-react';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -206,7 +207,82 @@ function ChallengeThree({ answers, done, add }: { answers: Record<string, boolea
 }
 
 function ChallengeFour({ answers, done, add }: { answers: Record<string, boolean>; done: (k: string) => void; add: (n: number) => void }) {
-  return <div className="space-y-8"><div className="relative overflow-hidden rounded-2xl bg-[hsl(229_42%_11%)] p-6 text-[hsl(220_28%_95%)]"><div className="scan-bar" /><div className="mono mb-4 text-[10px] uppercase tracking-[.2em] text-[hsl(43_96%_65%)]">Audio attachment · acquisition-announcement.mp3</div><div className="flex items-center gap-4"><button type="button" className="grid size-12 place-items-center rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]" aria-label="Play audio sample" data-testid="button-play-audio"><Sparkles size={18} /></button><div className="flex-1"><div className="h-1 rounded bg-[hsl(220_28%_95%/.2)]"><div className="h-1 w-2/3 rounded bg-[hsl(var(--primary))]" /></div><div className="mono mt-2 flex justify-between text-[10px] text-[hsl(223_16%_70%)]"><span>00:07</span><span>00:11</span></div></div></div><p className="mt-4 text-sm text-[hsl(223_16%_76%)]">“We are pleased to confirm the acquisition…” Listen for what the recording does not prove.</p></div><SingleQuestion id="c4q1" title="Q1 · Is this recording real, or a deepfake?" choices={singleChoices.c4q1} points={5} onCorrect={add} completed={!!answers.c4q1} setCompleted={() => done('c4q1')} /><SingleQuestion id="c4q2" title="Q2 · What is the right thing to do?" choices={[{ text: 'Forward it so colleagues know about the news.', correct: false, why: 'Sharing an unverified recording amplifies misinformation.' }, { text: 'Check official channels and report it to Security or Communications before treating it as real.', correct: true, why: 'Correct. A genuine acquisition would be confirmed through official channels — never a leaked clip.' }, { text: 'Ask the group chat if anyone can confirm it.', correct: false, why: 'That keeps the clip circulating without resolving anything.' }, { text: 'Do nothing and assume someone else will deal with it.', correct: false, why: 'Report what you saw so the organization can contain it quickly.' }]} points={10} onCorrect={add} completed={!!answers.c4q2} setCompleted={() => done('c4q2')} /><MultiQuestion id="c4q3" title="Q3 · Which are genuine indicators of a deepfake?" choices={multiChoices.c4q3} onEarn={add} completed={!!answers.c4q3} setCompleted={() => done('c4q3')} /></div>;
+  const [isPlaying, setIsPlaying] = useState(false);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+  useEffect(() => {
+    return () => { window.speechSynthesis?.cancel(); };
+  }, []);
+
+  const toggleAudio = () => {
+    if (!window.speechSynthesis) return;
+    if (isPlaying) {
+      window.speechSynthesis.cancel();
+      setIsPlaying(false);
+      return;
+    }
+    const utt = new SpeechSynthesisUtterance(
+      'We are pleased to confirm the acquisition of Mercer Capital Partners for a sum of 2.1 billion dollars. ' +
+      'This represents a transformative milestone for our firm and our clients. ' +
+      'Further details will follow through the appropriate channels.'
+    );
+    utt.rate = 0.88;
+    utt.pitch = 0.95;
+    utt.onend = () => setIsPlaying(false);
+    utt.onerror = () => setIsPlaying(false);
+    utteranceRef.current = utt;
+    setIsPlaying(true);
+    window.speechSynthesis.speak(utt);
+  };
+
+  return (
+    <div className="space-y-8">
+      <div className="relative overflow-hidden rounded-2xl bg-[hsl(229_42%_11%)] p-6 text-[hsl(220_28%_95%)]">
+        <div className="scan-bar" />
+        <div className="mono mb-4 text-[10px] uppercase tracking-[.2em] text-[hsl(43_96%_65%)]">Audio attachment · acquisition-announcement.mp3</div>
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={toggleAudio}
+            className={`grid size-12 shrink-0 place-items-center rounded-full transition-colors ${isPlaying ? 'bg-[hsl(43_96%_55%)] text-[hsl(229_42%_9%)]' : 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]'}`}
+            aria-label={isPlaying ? 'Stop audio' : 'Play audio sample'}
+            data-testid="button-play-audio"
+          >
+            {isPlaying ? <Square size={16} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
+          </button>
+          <div className="flex-1">
+            <div className="flex h-8 items-end gap-[3px]">
+              {Array.from({ length: 28 }).map((_, i) => {
+                const h = [4, 8, 14, 20, 26, 30, 22, 16, 28, 18, 10, 24, 32, 20, 14, 28, 22, 12, 18, 26, 16, 8, 20, 28, 14, 10, 24, 6][i] ?? 8;
+                return (
+                  <div
+                    key={i}
+                    className={`w-1 rounded-sm transition-all ${isPlaying ? 'bg-[hsl(var(--primary))]' : 'bg-[hsl(220_28%_95%/.3)]'}`}
+                    style={{
+                      height: `${h}px`,
+                      animation: isPlaying ? `waveBar 0.${6 + (i % 5)}s ease-in-out ${(i * 0.04).toFixed(2)}s infinite alternate` : 'none',
+                    }}
+                  />
+                );
+              })}
+            </div>
+            <div className="mono mt-2 flex justify-between text-[10px] text-[hsl(223_16%_70%)]">
+              <span>{isPlaying ? '▶ playing…' : '00:00'}</span>
+              <span>0:14</span>
+            </div>
+          </div>
+        </div>
+        <p className="mt-4 text-sm text-[hsl(223_16%_76%)]">
+          {isPlaying
+            ? <><span className="text-[hsl(43_96%_65%)]">● Live</span> — listen carefully for unnatural pacing or tonal artefacts.</>
+            : '"We are pleased to confirm the acquisition…" Press play and listen for what the recording does not prove.'}
+        </p>
+      </div>
+      <SingleQuestion id="c4q1" title="Q1 · Is this recording real, or a deepfake?" choices={singleChoices.c4q1} points={5} onCorrect={add} completed={!!answers.c4q1} setCompleted={() => done('c4q1')} />
+      <SingleQuestion id="c4q2" title="Q2 · What is the right thing to do?" choices={[{ text: 'Forward it so colleagues know about the news.', correct: false, why: 'Sharing an unverified recording amplifies misinformation.' }, { text: 'Check official channels and report it to Security or Communications before treating it as real.', correct: true, why: 'Correct. A genuine acquisition would be confirmed through official channels — never a leaked clip.' }, { text: 'Ask the group chat if anyone can confirm it.', correct: false, why: 'That keeps the clip circulating without resolving anything.' }, { text: 'Do nothing and assume someone else will deal with it.', correct: false, why: 'Report what you saw so the organization can contain it quickly.' }]} points={10} onCorrect={add} completed={!!answers.c4q2} setCompleted={() => done('c4q2')} />
+      <MultiQuestion id="c4q3" title="Q3 · Which are genuine indicators of a deepfake?" choices={multiChoices.c4q3} onEarn={add} completed={!!answers.c4q3} setCompleted={() => done('c4q3')} />
+    </div>
+  );
 }
 
 function LockedScreen({ challenge, onBack }: { challenge: ChallengeId; onBack: () => void }) {
@@ -227,12 +303,113 @@ function PlayerPage() {
   const [started, setStarted] = useState(() => !!readProgress().name);
   const [screen, setScreen] = useState<string>(() => readProgress().submitted ? 'finale' : 'map');
   const [locked, setLocked] = useState<ChallengeId | null>(null);
-  const update = (next: Progress) => { setProgress(next); writeProgress(next); };
-  const start = (e: FormEvent) => { e.preventDefault(); const trimmed = name.trim(); if (!trimmed) return; update({ ...progress, name: trimmed }); setStarted(true); setScreen('map'); };
-  const reset = () => { localStorage.removeItem('cth_progress'); setProgress({ name: '', score: 0, won: [], times: {} }); setName(''); setStarted(false); setScreen('map'); setLocked(null); };
+  const [loadingProfile, setLoadingProfile] = useState(false);
+  const [welcomeBack, setWelcomeBack] = useState(false);
+  const saveProgress = useSaveProgress();
+  const prevWonLen = useRef(progress.won.length);
+
+  const update = useCallback((next: Progress) => { setProgress(next); writeProgress(next); }, []);
+
+  const syncToServer = useCallback((p: Progress) => {
+    if (!p.name) return;
+    saveProgress.mutate({
+      name: p.name.trim().toLowerCase(),
+      data: { name: p.name, score: p.score, won: p.won, times: p.times as Record<string, { start: number; seconds: number | null }>, submitted: p.submitted ?? false },
+    });
+  }, []); // eslint-disable-line
+
+  // Auto-save whenever a key is claimed or the finale is submitted
+  useEffect(() => {
+    if (!started || !progress.name) return;
+    if (progress.won.length > prevWonLen.current || progress.submitted) {
+      prevWonLen.current = progress.won.length;
+      syncToServer(progress);
+    }
+  }, [progress.won.length, progress.submitted]); // eslint-disable-line
+
+  const start = async (e: FormEvent) => {
+    e.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setLoadingProfile(true);
+    try {
+      const server = await getProgress(trimmed.toLowerCase());
+      const restored: Progress = {
+        name: trimmed,
+        score: server.score,
+        won: (server.won as number[]),
+        times: server.times as Progress['times'],
+        submitted: server.submitted,
+      };
+      update(restored);
+      prevWonLen.current = restored.won.length;
+      setWelcomeBack(restored.won.length > 0 || restored.submitted);
+      setStarted(true);
+      setScreen(restored.submitted ? 'finale' : 'map');
+    } catch {
+      // 404 → no prior progress, start fresh
+      update({ ...progress, name: trimmed });
+      setStarted(true);
+      setScreen('map');
+    } finally {
+      setLoadingProfile(false);
+    }
+  };
+
+  const reset = () => { localStorage.removeItem('cth_progress'); setProgress({ name: '', score: 0, won: [], times: {} }); setName(''); setStarted(false); setScreen('map'); setLocked(null); setWelcomeBack(false); prevWonLen.current = 0; };
   const pick = (id: ChallengeId) => { const i = CHALLENGES.findIndex((c) => c.id === id); if (!isUnlocked(id) || (i > 0 && !progress.won.includes(i - 1))) { setLocked(id); setScreen('locked'); return; } const next = progress.times[id] ? progress : { ...progress, times: { ...progress.times, [id]: { start: Date.now(), seconds: null } } }; update(next); setScreen(id); };
-  if (!started) return <div className="mission-app"><TopBar /><main className="relative z-10 mx-auto flex min-h-[calc(100dvh-90px)] w-full max-w-6xl items-center px-5 pb-16 md:px-8"><div className="grid w-full items-center gap-12 lg:grid-cols-[1.1fr_.9fr]"><div className="screen-enter"><div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[hsl(var(--primary)/.35)] bg-[hsl(var(--primary)/.08)] px-3 py-1.5 mono text-[10px] uppercase tracking-[.16em] text-[hsl(var(--primary))]"><Shield size={13} /> Team security mission · 4 weeks</div><h1 className="display max-w-3xl text-5xl font-bold leading-[.96] tracking-[-.05em] md:text-7xl">Think sharp.<br /><span className="text-[hsl(var(--secondary))]">Stay curious.</span><br />Crack the vault.</h1><p className="mt-6 max-w-xl text-base leading-8 text-[hsl(var(--muted-foreground))]">A short, story-driven cyber-awareness expedition for teams. Spot the signal, learn the habit, earn the key — then beat the cipher.</p><div className="mt-8 flex flex-wrap gap-4 text-sm text-[hsl(var(--muted-foreground))]"><span className="inline-flex items-center gap-2"><Clock3 size={16} className="text-[hsl(var(--primary))]" /> 10–15 min</span><span className="inline-flex items-center gap-2"><Zap size={16} className="text-[hsl(43_96%_50%)]" /> 100 points</span><span className="inline-flex items-center gap-2"><Trophy size={16} className="text-[hsl(var(--secondary))]" /> Team leaderboard</span></div></div><form onSubmit={start} className="soft-card screen-enter rounded-3xl p-7 md:p-9"><div className="mb-7 flex items-center justify-between"><div><div className="mono text-[10px] uppercase tracking-[.2em] text-[hsl(var(--muted-foreground))]">Identify yourself</div><h2 className="display mt-1 text-2xl font-bold">Your mission badge</h2></div><div className="grid size-12 place-items-center rounded-2xl bg-[hsl(var(--foreground))] text-[hsl(var(--primary))]"><Terminal size={20} /></div></div><label className="mono text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]" htmlFor="player-name">First and last name</label><input id="player-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Alex Morgan" className="mt-2 w-full rounded-xl border border-[hsl(var(--border))] bg-white/70 px-4 py-3.5 outline-none transition focus:border-[hsl(var(--primary))]" data-testid="input-player-name" required /><button type="submit" className="btn-primary mt-4 flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-sm font-bold" data-testid="button-start-hunt">Start the hunt <ArrowRight size={17} /></button><p className="mt-4 text-center text-xs leading-5 text-[hsl(var(--muted-foreground))]">Your progress is saved in this browser. You can return to the map any time.</p></form></div></main></div>;
-  return <div className="mission-app"><TopBar progress={progress} onReset={reset} /><main className="relative z-10">{screen === 'map' && <div className="screen-enter mx-auto w-full max-w-6xl px-5 pb-16 md:px-8"><div className="mb-8 grid gap-6 lg:grid-cols-[1fr_300px]"><div><div className="mono text-[10px] uppercase tracking-[.2em] text-[hsl(var(--primary))]">Mission control / active</div><h1 className="display mt-2 text-4xl font-bold tracking-tight md:text-6xl">Choose your next signal.</h1><p className="mt-4 max-w-2xl text-sm leading-7 text-[hsl(var(--muted-foreground))]">Every challenge is a real-world habit disguised as a field operation. Clear one to reveal the next.</p></div><div className="soft-card rounded-2xl p-5"><div className="mono text-[10px] uppercase tracking-[.17em] text-[hsl(var(--muted-foreground))]">Current status</div><div className="mt-2 flex items-end justify-between"><b className="display text-3xl">{progress.score}<span className="text-base text-[hsl(var(--muted-foreground))]"> pts</span></b><span className="mono text-xs text-[hsl(var(--primary))]">{progress.won.length === 4 ? 'VAULT READY' : 'IN PROGRESS'}</span></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-[hsl(var(--muted))]"><div className="h-full rounded-full bg-[hsl(var(--primary))] transition-all" style={{ width: `${progress.won.length * 25}%` }} /></div></div></div><ChallengeMap progress={progress} current={screen} onPick={pick} /><div className="mt-7 grid gap-3 md:grid-cols-2">{CHALLENGES.map((c, i) => { const open = isUnlocked(c.id) && (i === 0 || progress.won.includes(i - 1)); const won = progress.won.includes(i); return <button key={c.id} type="button" onClick={() => pick(c.id)} className={`soft-card group flex items-center justify-between rounded-2xl p-5 text-left ${!open ? 'opacity-70' : ''}`} data-testid={`button-open-${c.id}`}><span className="flex items-center gap-4"><span className={`grid size-10 place-items-center rounded-xl ${won ? 'bg-[hsl(43_96%_55%)] text-[hsl(229_42%_9%)]' : open ? 'bg-[hsl(var(--primary)/.12)] text-[hsl(var(--primary))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`}>{won ? <Check size={18} /> : open ? <Zap size={18} /> : <LockKeyhole size={17} />}</span><span><span className="mono block text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">0{i + 1} · {open ? c.short : `Releases ${releaseDate(c.id).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`}</span><b className="display mt-1 block">{c.title}</b></span></span><ArrowRight size={17} className="text-[hsl(var(--muted-foreground))] transition group-hover:translate-x-1" /></button>; })}</div>{progress.won.length === 4 && <button type="button" onClick={() => setScreen('finale')} className="btn-secondary mt-6 flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-4 text-sm font-bold" data-testid="button-open-finale"><Unlock size={17} /> All keys secured — open the vault</button>}</div>}{['c1', 'c2', 'c3', 'c4'].includes(screen) && <ChallengeScreen challenge={screen as ChallengeId} progress={progress} setProgress={update} onClaim={() => setScreen('map')} onBack={() => setScreen('map')} />}{screen === 'locked' && locked && <LockedScreen challenge={locked} onBack={() => setScreen('map')} />}{screen === 'finale' && <Finale progress={progress} setProgress={update} onReset={reset} />}</main><footer className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-5 pb-8 md:px-8"><span className="mono text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">CTH // build 04</span><Link href="/admin" className="mono text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))] underline decoration-dotted underline-offset-4" data-testid="link-admin">Organizer access</Link></footer></div>;
+
+  if (!started) return (
+    <div className="mission-app">
+      <TopBar />
+      <main className="relative z-10 mx-auto flex min-h-[calc(100dvh-90px)] w-full max-w-6xl items-center px-5 pb-16 md:px-8">
+        <div className="grid w-full items-center gap-12 lg:grid-cols-[1.1fr_.9fr]">
+          <div className="screen-enter">
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[hsl(var(--primary)/.35)] bg-[hsl(var(--primary)/.08)] px-3 py-1.5 mono text-[10px] uppercase tracking-[.16em] text-[hsl(var(--primary))]"><Shield size={13} /> Team security mission · 4 weeks</div>
+            <h1 className="display max-w-3xl text-5xl font-bold leading-[.96] tracking-[-.05em] md:text-7xl">Think sharp.<br /><span className="text-[hsl(var(--secondary))]">Stay curious.</span><br />Crack the vault.</h1>
+            <p className="mt-6 max-w-xl text-base leading-8 text-[hsl(var(--muted-foreground))]">A short, story-driven cyber-awareness expedition for teams. Spot the signal, learn the habit, earn the key — then beat the cipher.</p>
+            <div className="mt-8 flex flex-wrap gap-4 text-sm text-[hsl(var(--muted-foreground))]"><span className="inline-flex items-center gap-2"><Clock3 size={16} className="text-[hsl(var(--primary))]" /> 10–15 min</span><span className="inline-flex items-center gap-2"><Zap size={16} className="text-[hsl(43_96%_50%)]" /> 100 points</span><span className="inline-flex items-center gap-2"><Trophy size={16} className="text-[hsl(var(--secondary))]" /> Team leaderboard</span></div>
+          </div>
+          <form onSubmit={start} className="soft-card screen-enter rounded-3xl p-7 md:p-9">
+            <div className="mb-7 flex items-center justify-between"><div><div className="mono text-[10px] uppercase tracking-[.2em] text-[hsl(var(--muted-foreground))]">Identify yourself</div><h2 className="display mt-1 text-2xl font-bold">Your mission badge</h2></div><div className="grid size-12 place-items-center rounded-2xl bg-[hsl(var(--foreground))] text-[hsl(var(--primary))]"><Terminal size={20} /></div></div>
+            <label className="mono text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]" htmlFor="player-name">First and last name</label>
+            <input id="player-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Alex Morgan" className="mt-2 w-full rounded-xl border border-[hsl(var(--border))] bg-white/70 px-4 py-3.5 outline-none transition focus:border-[hsl(var(--primary))]" data-testid="input-player-name" required disabled={loadingProfile} />
+            <button type="submit" disabled={loadingProfile} className="btn-primary mt-4 flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-sm font-bold" data-testid="button-start-hunt">
+              {loadingProfile ? <><Loader2 size={16} className="animate-spin" /> Restoring progress…</> : <>Start the hunt <ArrowRight size={17} /></>}
+            </button>
+            <p className="mt-4 text-center text-xs leading-5 text-[hsl(var(--muted-foreground))]">Progress is saved to your profile — pick up from any device.</p>
+          </form>
+        </div>
+      </main>
+    </div>
+  );
+
+  return (
+    <div className="mission-app">
+      <TopBar progress={progress} onReset={reset} />
+      <main className="relative z-10">
+        {screen === 'map' && (
+          <div className="screen-enter mx-auto w-full max-w-6xl px-5 pb-16 md:px-8">
+            {welcomeBack && (
+              <div className="mb-6 flex items-center gap-3 rounded-2xl border border-[hsl(43_96%_55%/.35)] bg-[hsl(43_96%_55%/.09)] px-5 py-3.5">
+                <Trophy size={16} className="shrink-0 text-[hsl(43_70%_40%)]" />
+                <p className="text-sm"><b>Welcome back, {progress.name.split(' ')[0]}!</b> Your progress has been restored — {progress.won.length} of 4 keys secured.</p>
+                <button type="button" onClick={() => setWelcomeBack(false)} className="ml-auto shrink-0 text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"><X size={15} /></button>
+              </div>
+            )}
+            <div className="mb-8 grid gap-6 lg:grid-cols-[1fr_300px]"><div><div className="mono text-[10px] uppercase tracking-[.2em] text-[hsl(var(--primary))]">Mission control / active</div><h1 className="display mt-2 text-4xl font-bold tracking-tight md:text-6xl">Choose your next signal.</h1><p className="mt-4 max-w-2xl text-sm leading-7 text-[hsl(var(--muted-foreground))]">Every challenge is a real-world habit disguised as a field operation. Clear one to reveal the next.</p></div><div className="soft-card rounded-2xl p-5"><div className="mono text-[10px] uppercase tracking-[.17em] text-[hsl(var(--muted-foreground))]">Current status</div><div className="mt-2 flex items-end justify-between"><b className="display text-3xl">{progress.score}<span className="text-base text-[hsl(var(--muted-foreground))]"> pts</span></b><span className="mono text-xs text-[hsl(var(--primary))]">{progress.won.length === 4 ? 'VAULT READY' : 'IN PROGRESS'}</span></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-[hsl(var(--muted))]"><div className="h-full rounded-full bg-[hsl(var(--primary))] transition-all" style={{ width: `${progress.won.length * 25}%` }} /></div></div></div>
+            <ChallengeMap progress={progress} current={screen} onPick={pick} />
+            <div className="mt-7 grid gap-3 md:grid-cols-2">{CHALLENGES.map((c, i) => { const open = isUnlocked(c.id) && (i === 0 || progress.won.includes(i - 1)); const won = progress.won.includes(i); return <button key={c.id} type="button" onClick={() => pick(c.id)} className={`soft-card group flex items-center justify-between rounded-2xl p-5 text-left ${!open ? 'opacity-70' : ''}`} data-testid={`button-open-${c.id}`}><span className="flex items-center gap-4"><span className={`grid size-10 place-items-center rounded-xl ${won ? 'bg-[hsl(43_96%_55%)] text-[hsl(229_42%_9%)]' : open ? 'bg-[hsl(var(--primary)/.12)] text-[hsl(var(--primary))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`}>{won ? <Check size={18} /> : open ? <Zap size={18} /> : <LockKeyhole size={17} />}</span><span><span className="mono block text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">0{i + 1} · {open ? c.short : `Releases ${releaseDate(c.id).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`}</span><b className="display mt-1 block">{c.title}</b></span></span><ArrowRight size={17} className="text-[hsl(var(--muted-foreground))] transition group-hover:translate-x-1" /></button>; })}</div>
+            {progress.won.length === 4 && <button type="button" onClick={() => setScreen('finale')} className="btn-secondary mt-6 flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-4 text-sm font-bold" data-testid="button-open-finale"><Unlock size={17} /> All keys secured — open the vault</button>}
+          </div>
+        )}
+        {['c1', 'c2', 'c3', 'c4'].includes(screen) && <ChallengeScreen challenge={screen as ChallengeId} progress={progress} setProgress={update} onClaim={() => setScreen('map')} onBack={() => setScreen('map')} />}
+        {screen === 'locked' && locked && <LockedScreen challenge={locked} onBack={() => setScreen('map')} />}
+        {screen === 'finale' && <Finale progress={progress} setProgress={update} onReset={reset} />}
+      </main>
+      <footer className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-5 pb-8 md:px-8"><span className="mono text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">CTH // build 04</span><Link href="/admin" className="mono text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))] underline decoration-dotted underline-offset-4" data-testid="link-admin">Organizer access</Link></footer>
+    </div>
+  );
 }
 
 type SortKey = 'score' | 'name' | 'rank' | 'totalTime' | 'createdAt';

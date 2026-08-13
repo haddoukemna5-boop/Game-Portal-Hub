@@ -12,6 +12,8 @@ tags:
     description: Health operations
   - name: results
     description: Cyber Treasure Hunt participant results
+  - name: progress
+    description: Player progress persistence
 paths:
   /healthz:
     get:
@@ -61,6 +63,61 @@ paths:
                 $ref: "#/components/schemas/GameResult"
         "400":
           description: Invalid result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /progress/{name}:
+    get:
+      operationId: getProgress
+      tags: [progress]
+      summary: Get player progress
+      description: Returns the saved progress for a player by name. Returns 404 if not found.
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Player progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerProgress"
+        "404":
+          description: Player not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: saveProgress
+      tags: [progress]
+      summary: Save player progress
+      description: Upserts progress for a player.
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlayerProgressInput"
+      responses:
+        "200":
+          description: Saved progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerProgress"
+        "400":
+          description: Invalid input
           content:
             application/json:
               schema:
@@ -196,4 +253,54 @@ components:
           type: string
       required:
         - error
+    PlayerProgress:
+      type: object
+      properties:
+        name:
+          type: string
+        score:
+          type: number
+        won:
+          type: array
+          items:
+            type: number
+        times:
+          type: object
+          additionalProperties: true
+        submitted:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - name
+        - score
+        - won
+        - times
+        - submitted
+        - updatedAt
+    PlayerProgressInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        score:
+          type: number
+          minimum: 0
+        won:
+          type: array
+          items:
+            type: number
+        times:
+          type: object
+          additionalProperties: true
+        submitted:
+          type: boolean
+      required:
+        - name
+        - score
+        - won
+        - times
+        - submitted
 

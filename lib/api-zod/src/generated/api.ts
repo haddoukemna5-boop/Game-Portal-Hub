@@ -79,6 +79,55 @@ export const SubmitResultResponse = zod.object({
 
 
 /**
+ * Returns the saved progress for a player by name. Returns 404 if not found.
+ * @summary Get player progress
+ */
+export const GetProgressParams = zod.object({
+  "name": zod.coerce.string()
+})
+
+export const GetProgressResponse = zod.object({
+  "name": zod.string(),
+  "score": zod.number(),
+  "won": zod.array(zod.number()),
+  "times": zod.record(zod.string(), zod.unknown()),
+  "submitted": zod.boolean(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * Upserts progress for a player.
+ * @summary Save player progress
+ */
+export const SaveProgressParams = zod.object({
+  "name": zod.coerce.string()
+})
+
+
+export const saveProgressBodyScoreMin = 0;
+
+
+
+export const SaveProgressBody = zod.object({
+  "name": zod.string().min(1),
+  "score": zod.number().min(saveProgressBodyScoreMin),
+  "won": zod.array(zod.number()),
+  "times": zod.record(zod.string(), zod.unknown()),
+  "submitted": zod.boolean()
+})
+
+export const SaveProgressResponse = zod.object({
+  "name": zod.string(),
+  "score": zod.number(),
+  "won": zod.array(zod.number()),
+  "times": zod.record(zod.string(), zod.unknown()),
+  "submitted": zod.boolean(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
  * Returns aggregate leaderboard metrics for the admin dashboard.
  * @summary Get leaderboard summary
  */

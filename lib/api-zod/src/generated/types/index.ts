@@ -10,4 +10,8 @@ export * from './errorResponse';
 export * from './gameResult';
 export * from './gameResultInput';
 export * from './healthStatus';
+export * from './playerProgress';
+export * from './playerProgressInput';
+export * from './playerProgressInputTimes';
+export * from './playerProgressTimes';
 export * from './resultsSummary';
