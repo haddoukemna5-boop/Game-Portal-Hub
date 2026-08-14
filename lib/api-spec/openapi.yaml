@@ -339,6 +339,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /admin/results/{playerName}:
+    patch:
+      operationId: markResultReal
+      tags: [results]
+      summary: Mark a test result as a real participant result
+      description: Clears the is_test flag on an existing game result so it appears on the leaderboard. Requires admin authentication.
+      parameters:
+        - in: path
+          name: playerName
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Result updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GameResult"
+        "404":
+          description: Result not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Admin authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /results/summary:
     get:
       operationId: getResultsSummary

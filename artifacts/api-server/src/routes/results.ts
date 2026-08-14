@@ -122,6 +122,20 @@ router.post("/results", requirePlayer, async (req, res): Promise<void> => {
   res.json(SubmitResultResponse.parse(result));
 });
 
+router.patch("/admin/results/:playerName", requireAdmin, async (req, res): Promise<void> => {
+  const playerName = (Array.isArray(req.params.playerName) ? req.params.playerName[0] : req.params.playerName)?.trim().toLowerCase();
+  if (!playerName) { res.status(400).json({ error: "Player name is required." }); return; }
+
+  const [updated] = await db
+    .update(gameResultsTable)
+    .set({ isTest: false })
+    .where(eq(gameResultsTable.playerName, playerName))
+    .returning();
+
+  if (!updated) { res.status(404).json({ error: "No result found for that player." }); return; }
+  res.json(updated);
+});
+
 router.get("/results/summary", requireAdmin, async (req, res): Promise<void> => {
   req.log.info("Fetching leaderboard summary");
   res.setHeader("Cache-Control", "no-store");

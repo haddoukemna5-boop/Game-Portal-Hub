@@ -957,6 +957,78 @@ export const useResetPlayerPassword = <TError = ErrorType<ErrorResponse>,
       return useMutation(getResetPlayerPasswordMutationOptions(options));
     }
 
+export const getMarkResultRealUrl = (playerName: string,) => {
+
+
+
+
+  return `/api/admin/results/${playerName}`
+}
+
+/**
+ * Clears the is_test flag on an existing game result so it appears on the leaderboard. Requires admin authentication.
+ * @summary Mark a test result as a real participant result
+ */
+export const markResultReal = async (playerName: string, options?: Parameters<typeof customFetch>[1]): Promise<GameResult> => {
+
+  return customFetch<GameResult>(getMarkResultRealUrl(playerName),
+  {
+    ...options,
+    method: 'PATCH'
+
+
+  }
+);}
+
+
+
+
+
+export const getMarkResultRealMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markResultReal>>, TError,{playerName: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markResultReal>>, TError,{playerName: string}, TContext> => {
+
+const mutationKey = ['markResultReal'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markResultReal>>, {playerName: string}> = (props) => {
+          const {playerName} = props ?? {};
+
+          return  markResultReal(playerName,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkResultRealMutationResult = NonNullable<Awaited<ReturnType<typeof markResultReal>>>
+
+    export type MarkResultRealMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Mark a test result as a real participant result
+ */
+export const useMarkResultReal = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markResultReal>>, TError,{playerName: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markResultReal>>,
+        TError,
+        {playerName: string},
+        TContext
+      > => {
+      return useMutation(getMarkResultRealMutationOptions(options));
+    }
+
 export const getGetResultsSummaryUrl = () => {
 
 

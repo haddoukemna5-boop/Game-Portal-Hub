@@ -273,6 +273,31 @@ export const ResetPlayerPasswordResponse = zod.object({
 
 
 /**
+ * Clears the is_test flag on an existing game result so it appears on the leaderboard. Requires admin authentication.
+ * @summary Mark a test result as a real participant result
+ */
+export const MarkResultRealParams = zod.object({
+  "playerName": zod.coerce.string()
+})
+
+export const MarkResultRealResponse = zod.object({
+  "id": zod.number(),
+  "playerName": zod.string().describe('Canonical (lowercased) player name — used as the key for password reset.'),
+  "firstName": zod.string(),
+  "lastName": zod.string(),
+  "score": zod.number(),
+  "rank": zod.string(),
+  "timeC1": zod.number().nullable(),
+  "timeC2": zod.number().nullable(),
+  "timeC3": zod.number().nullable(),
+  "timeC4": zod.number().nullable(),
+  "totalTime": zod.number().nullable(),
+  "isTest": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
  * Returns aggregate leaderboard metrics for the admin dashboard.
  * @summary Get leaderboard summary
  */
