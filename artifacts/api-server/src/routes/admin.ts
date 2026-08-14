@@ -10,12 +10,12 @@ function adminUsername() {
 }
 
 function adminPassword() {
-  const password = process.env.ADMIN_PASSWORD;
+  const password = process.env.ADMIN_PASSWORD?.trim();
   return password && password.length > 0 ? password : null;
 }
 
 function sessionSecret(): string | null {
-  const secret = process.env.SESSION_SECRET;
+  const secret = process.env.SESSION_SECRET?.trim();
   return secret && secret.length > 0 ? secret : null;
 }
 
