@@ -538,6 +538,7 @@ function PlayerPage() {
   const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [isNewPlayer, setIsNewPlayer] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [welcomeBack, setWelcomeBack] = useState(false);
   const [forgotMode, setForgotMode] = useState(false);
@@ -585,7 +586,8 @@ function PlayerPage() {
     const username = name.trim().toLowerCase();
     const fullName = displayName.trim();
     const pwd = password.trim();
-    if (!username || !fullName || !pwd) return;
+    if (!username || !pwd) return;
+    if (isNewPlayer && !fullName) return;
     setLoadingProfile(true);
     setLoginError('');
     try {
@@ -661,13 +663,21 @@ function PlayerPage() {
           <div className="soft-card screen-enter rounded-3xl p-7 md:p-9">
             {!forgotMode ? (
               <form onSubmit={start}>
-                <div className="mb-7 flex items-center justify-between"><div><div className="mono text-[10px] uppercase tracking-[.2em] text-[hsl(var(--muted-foreground))]">Create or sign in</div><h2 className="display mt-1 text-4xl font-bold leading-[.98] tracking-[-.04em] text-[hsl(var(--secondary))] md:text-5xl">Welcome, agent.</h2><p className="mt-2 text-sm font-medium text-[hsl(var(--muted-foreground))]">Your mission profile</p></div><div className="grid size-12 rounded-2xl bg-[hsl(var(--foreground))] text-[hsl(var(--primary))] place-items-center"><KeyRound size={20} /></div></div>
-                <label className="mono text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]" htmlFor="player-display-name">Full name</label>
-                <input id="player-display-name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="e.g. Alex Morgan" className="mt-2 w-full rounded-xl border border-[hsl(var(--border))] bg-white/70 px-4 py-3.5 outline-none transition focus:border-[hsl(var(--primary))]" data-testid="input-player-display-name" required disabled={loadingProfile} autoComplete="name" />
-                <label className="mono mt-4 block text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]" htmlFor="player-name">Username</label>
+                <div className="mb-6 flex items-center justify-between"><div><div className="mono text-[10px] uppercase tracking-[.2em] text-[hsl(var(--muted-foreground))]">{isNewPlayer ? 'Create profile' : 'Sign in'}</div><h2 className="display mt-1 text-4xl font-bold leading-[.98] tracking-[-.04em] text-[hsl(var(--secondary))] md:text-5xl">Welcome, agent.</h2><p className="mt-2 text-sm font-medium text-[hsl(var(--muted-foreground))]">Your mission profile</p></div><div className="grid size-12 rounded-2xl bg-[hsl(var(--foreground))] text-[hsl(var(--primary))] place-items-center"><KeyRound size={20} /></div></div>
+                {/* Toggle between sign-in and create-profile */}
+                <div className="mb-5 flex rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted)/.4)] p-1">
+                  <button type="button" onClick={() => { setIsNewPlayer(false); setLoginError(''); }} className={`flex-1 rounded-lg py-2 text-sm font-semibold transition ${!isNewPlayer ? 'bg-white shadow-sm text-[hsl(var(--foreground))]' : 'text-[hsl(var(--muted-foreground))]'}`}>Sign in</button>
+                  <button type="button" onClick={() => { setIsNewPlayer(true); setLoginError(''); }} className={`flex-1 rounded-lg py-2 text-sm font-semibold transition ${isNewPlayer ? 'bg-white shadow-sm text-[hsl(var(--foreground))]' : 'text-[hsl(var(--muted-foreground))]'}`}>Create profile</button>
+                </div>
+                {isNewPlayer && (<>
+                  <label className="mono text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]" htmlFor="player-display-name">Full name</label>
+                  <input id="player-display-name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="e.g. Alex Morgan" className="mt-2 w-full rounded-xl border border-[hsl(var(--border))] bg-white/70 px-4 py-3.5 outline-none transition focus:border-[hsl(var(--primary))]" data-testid="input-player-display-name" required={isNewPlayer} disabled={loadingProfile} autoComplete="name" />
+                  <label className="mono mt-4 block text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]" htmlFor="player-name">Username</label>
+                </>)}
+                {!isNewPlayer && <label className="mono text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]" htmlFor="player-name">Username</label>}
                 <input id="player-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. alex.morgan" className="mt-2 w-full rounded-xl border border-[hsl(var(--border))] bg-white/70 px-4 py-3.5 outline-none transition focus:border-[hsl(var(--primary))]" data-testid="input-player-name" required disabled={loadingProfile} autoComplete="username" />
                 <label className="mono mt-4 block text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]" htmlFor="player-password">Password</label>
-                <input id="player-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Choose or enter your password" className="mt-2 w-full rounded-xl border border-[hsl(var(--border))] bg-white/70 px-4 py-3.5 outline-none transition focus:border-[hsl(var(--primary))]" data-testid="input-player-password" required disabled={loadingProfile} autoComplete="current-password" minLength={4} />
+                <input id="player-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={isNewPlayer ? 'Choose a password' : 'Enter your password'} className="mt-2 w-full rounded-xl border border-[hsl(var(--border))] bg-white/70 px-4 py-3.5 outline-none transition focus:border-[hsl(var(--primary))]" data-testid="input-player-password" required disabled={loadingProfile} autoComplete={isNewPlayer ? 'new-password' : 'current-password'} minLength={4} />
                 {loginError && <div className="mt-3 rounded-xl bg-[hsl(var(--destructive)/.1)] px-4 py-3 text-sm text-[hsl(var(--destructive))]" role="alert">{loginError}</div>}
                 <button type="submit" disabled={loadingProfile} className="btn-primary mt-4 flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-sm font-bold" data-testid="button-start-hunt">
                   {loadingProfile ? <><Loader2 size={16} className="animate-spin" /> Signing in…</> : <>Start the hunt <ArrowRight size={17} /></>}
