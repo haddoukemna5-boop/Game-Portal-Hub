@@ -44,7 +44,7 @@ const singleChoices: Record<string, Choice[]> = {
   c1q3: [
     { text: 'Reply asking whether it’s genuine', correct: false, why: 'Never reply — you’d confirm your address is live. Report it with the phishing button (or to the security team) and delete it.' },
     { text: 'Click the link but enter a fake password to test it', correct: false, why: 'Never interact with the link at all — the page itself can be malicious. Report it with the phishing button and delete it.' },
-    { text: 'Report it with the phishing / report button, then delete it', correct: true, why: 'Exactly. Reporting protects your colleagues too — security can block the sender for everyone.' },
+    { text: 'Report it with the phishing email report button in Outlook', correct: true, why: 'Exactly. Reporting protects your colleagues too — security can block the sender for everyone.' },
     { text: 'Forward it to colleagues to warn them', correct: false, why: 'Forwarding spreads the dangerous link. Report it with the phishing button — security will warn everyone safely.' },
   ],
   c2q1: [
@@ -81,8 +81,8 @@ const multiChoices: Record<string, MultiChoice[]> = {
   c3q2: [
     { text: 'C1 material can be sent by standard company email within the bank.', correct: true },
     { text: 'C2 emails should be clearly labelled “C2”.', correct: true },
-    { text: 'C2 data leaving the bank must use the secure external-sharing platform.', correct: true },
-    { text: 'C3 material may only leave via encrypted email or secure sharing, never plain email.', correct: true },
+    { text: 'Large C2 data leaving the bank must use the secure share platform for external sharing.', correct: true },
+    { text: 'Large C3 material may only leave via the secure hub platform, never plain email.', correct: true },
     { text: 'It is fine to forward C3 material to your personal email.', correct: false },
     { text: 'A document is C1 as long as it has no classification label.', correct: false },
   ],
@@ -90,7 +90,6 @@ const multiChoices: Record<string, MultiChoice[]> = {
     { text: 'The call was completely unscheduled — no IT ticket, no prior notice.', correct: true },
     { text: 'Extreme urgency: "install it now or the network will be breached in minutes".', correct: true },
     { text: 'The link goes to an external domain, not an internal IT portal.', correct: true },
-    { text: 'Slight visual glitches — edge flickering around the face, unnatural blinking.', correct: true },
     { text: 'The caller knows your first name.', correct: false },
     { text: 'The call came through the official Teams app.', correct: false },
   ],
