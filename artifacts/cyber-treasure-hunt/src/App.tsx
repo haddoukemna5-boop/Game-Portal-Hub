@@ -139,11 +139,22 @@ function ChallengeMap({ progress, current, onPick }: { progress: Progress; curre
         <path d="M50 88 C175 22 270 130 400 72 C530 22 660 130 750 58" fill="none" stroke="hsl(229 24% 28%)" strokeWidth="3" className="map-line" />
         <path d="M50 88 C175 22 270 130 400 72 C530 22 660 130 750 58" fill="none" stroke="hsl(187 78% 42%)" strokeWidth="4" strokeDasharray="100" strokeDashoffset={100 - (progress.won.length * 25)} />
         {CHALLENGES.map((challenge, i) => {
-          const won = progress.won.includes(i); const available = isUnlocked(challenge.id) && (i === 0 || progress.won.includes(i - 1));
+          const won = progress.won.includes(i);
+          const dateLocked = !isUnlocked(challenge.id);
+          const available = !dateLocked && (i === 0 || progress.won.includes(i - 1));
           const x = [50, 280, 510, 750][i]; const y = [88, 88, 60, 58][i];
-          return <g key={challenge.id} onClick={() => available && onPick(challenge.id)} className={available ? 'cursor-pointer' : ''}>
+          return <g key={challenge.id} onClick={() => available && onPick(challenge.id)} className={available ? 'cursor-pointer' : dateLocked ? 'cursor-not-allowed' : ''}>
             <circle cx={x} cy={y} r="19" fill={won ? 'hsl(43 96% 55%)' : available ? 'hsl(187 78% 42%)' : 'hsl(229 24% 28%)'} stroke="hsl(220 28% 95% / .7)" strokeWidth="2" />
-            <text x={x} y={y + 5} textAnchor="middle" fontFamily="DM Mono" fontSize="13" fill={won || available ? 'hsl(229 42% 9%)' : 'hsl(223 16% 66%)'}>{won ? '✓' : i + 1}</text>
+            {dateLocked && !won ? (
+              <g>
+                {/* Lock shackle */}
+                <path d={`M${x - 4.5} ${y - 1} L${x - 4.5} ${y - 5.5} A4.5 4.5 0 0 1 ${x + 4.5} ${y - 5.5} L${x + 4.5} ${y - 1}`} fill="none" stroke="hsl(223 16% 55%)" strokeWidth="1.5" strokeLinecap="round" />
+                {/* Lock body */}
+                <rect x={x - 6} y={y - 1} width="12" height="9" rx="2" fill="hsl(223 16% 55%)" />
+              </g>
+            ) : (
+              <text x={x} y={y + 5} textAnchor="middle" fontFamily="DM Mono" fontSize="13" fill={won || available ? 'hsl(229 42% 9%)' : 'hsl(223 16% 66%)'}>{won ? '✓' : i + 1}</text>
+            )}
             <text x={x} y={y + 40} textAnchor="middle" fontFamily="DM Mono" fontSize="11" fill="hsl(220 28% 95%)">{available ? challenge.short : `WEEK ${i + 1}`}</text>
           </g>;
         })}
@@ -762,7 +773,15 @@ function PlayerPage() {
             )}
             <div className="mb-8 grid gap-6 lg:grid-cols-[1fr_300px]"><div><div className="mono text-[10px] uppercase tracking-[.2em] text-[hsl(var(--primary))]">Mission control / active</div><h1 className="display mt-2 text-4xl font-bold tracking-tight md:text-6xl">Choose your next signal.</h1><p className="mt-4 max-w-2xl text-sm leading-7 text-[hsl(var(--muted-foreground))]">Every challenge is a real-world habit disguised as a field operation. Clear one to reveal the next.</p></div><div className="soft-card rounded-2xl p-5"><div className="mono text-[10px] uppercase tracking-[.17em] text-[hsl(var(--muted-foreground))]">Current status</div><div className="mt-2 flex items-end justify-between"><b className="display text-3xl">{progress.score}<span className="text-base text-[hsl(var(--muted-foreground))]"> pts</span></b><span className="mono text-xs text-[hsl(var(--primary))]">{progress.won.length === 4 ? 'VAULT READY' : 'IN PROGRESS'}</span></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-[hsl(var(--muted))]"><div className="h-full rounded-full bg-[hsl(var(--primary))] transition-all" style={{ width: `${progress.won.length * 25}%` }} /></div></div></div>
             <ChallengeMap progress={progress} current={screen} onPick={pick} />
-            <div className="mt-7 grid gap-3 md:grid-cols-2">{CHALLENGES.map((c, i) => { const open = isUnlocked(c.id) && (i === 0 || progress.won.includes(i - 1)); const won = progress.won.includes(i); return <button key={c.id} type="button" onClick={() => pick(c.id)} className={`soft-card group flex items-center justify-between rounded-2xl p-5 text-left ${!open ? 'opacity-70' : ''}`} data-testid={`button-open-${c.id}`}><span className="flex items-center gap-4"><span className={`grid size-10 place-items-center rounded-xl ${won ? 'bg-[hsl(43_96%_55%)] text-[hsl(229_42%_9%)]' : open ? 'bg-[hsl(var(--primary)/.12)] text-[hsl(var(--primary))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`}>{won ? <Check size={18} /> : open ? <Zap size={18} /> : <LockKeyhole size={17} />}</span><span><span className="mono block text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">0{i + 1} · {open ? c.short : `Releases ${releaseDate(c.id).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`}</span><b className="display mt-1 block">{c.title}</b></span></span><ArrowRight size={17} className="text-[hsl(var(--muted-foreground))] transition group-hover:translate-x-1" /></button>; })}</div>
+            <div className="mt-7 grid gap-3 md:grid-cols-2">{CHALLENGES.map((c, i) => {
+              const dateLocked = !isUnlocked(c.id);
+              const open = !dateLocked && (i === 0 || progress.won.includes(i - 1));
+              const won = progress.won.includes(i);
+              if (dateLocked) {
+                return <div key={c.id} className="soft-card flex items-center justify-between rounded-2xl p-5 opacity-50 cursor-not-allowed select-none" data-testid={`button-open-${c.id}`} aria-disabled="true"><span className="flex items-center gap-4"><span className="grid size-10 place-items-center rounded-xl bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"><LockKeyhole size={17} /></span><span><span className="mono block text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">0{i + 1} · Releases {releaseDate(c.id).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span><b className="display mt-1 block">{c.title}</b></span></span><Clock3 size={16} className="shrink-0 text-[hsl(var(--muted-foreground))]" /></div>;
+              }
+              return <button key={c.id} type="button" onClick={() => pick(c.id)} className={`soft-card group flex items-center justify-between rounded-2xl p-5 text-left ${!open ? 'opacity-70' : ''}`} data-testid={`button-open-${c.id}`}><span className="flex items-center gap-4"><span className={`grid size-10 place-items-center rounded-xl ${won ? 'bg-[hsl(43_96%_55%)] text-[hsl(229_42%_9%)]' : open ? 'bg-[hsl(var(--primary)/.12)] text-[hsl(var(--primary))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`}>{won ? <Check size={18} /> : open ? <Zap size={18} /> : <LockKeyhole size={17} />}</span><span><span className="mono block text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">0{i + 1} · {open ? c.short : `Releases ${releaseDate(c.id).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`}</span><b className="display mt-1 block">{c.title}</b></span></span><ArrowRight size={17} className="text-[hsl(var(--muted-foreground))] transition group-hover:translate-x-1" /></button>;
+            })}</div>
             {progress.won.length === 4 && <button type="button" onClick={() => setScreen('finale')} className="btn-secondary mt-6 flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-4 text-sm font-bold" data-testid="button-open-finale"><Unlock size={17} /> All keys secured — open the vault</button>}
           </div>
         )}
