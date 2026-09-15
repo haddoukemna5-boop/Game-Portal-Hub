@@ -114,16 +114,6 @@ export interface AdminSessionResult {
   authenticated: boolean;
 }
 
-export interface ResetPasswordInput {
-  /**
-     * Username of the account to reset.
-     * @minLength 1
-     */
-  name: string;
-  /** @minLength 1 */
-  password: string;
-}
-
 export type PlayerProgressTimes = { [key: string]: unknown };
 
 export interface PlayerProgress {
@@ -145,14 +135,6 @@ export interface AdminAuthInput {
 
 export interface AdminAuthResult {
   ok: boolean;
-}
-
-export interface AdminResetInput {
-  /**
-     * The organizer passcode — validated against SESSION_SECRET on the server.
-     * @minLength 1
-     */
-  adminPasscode: string;
 }
 
 export type PasswordResetResultTimes = { [key: string]: unknown };

@@ -1,9 +1,16 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { Router, type IRouter, type RequestHandler } from "express";
+import { createAuthRateLimit } from "../middlewares/auth-rate-limit";
 
 const router: IRouter = Router();
 const COOKIE_NAME = "cth_admin";
 const SESSION_TTL_SECONDS = 8 * 60 * 60;
+const adminLoginRateLimit = createAuthRateLimit({
+  namespace: "admin-login",
+  maxAttempts: 10,
+  windowMs: 15 * 60 * 1_000,
+  identifier: (req) => typeof req.body?.username === "string" ? req.body.username : "",
+});
 
 function adminUsername() {
   return (process.env.ADMIN_USERNAME || "admin").trim().toLowerCase();
@@ -21,6 +28,12 @@ function sessionSecret(): string | null {
 
 function signature(value: string, secret: string) {
   return createHmac("sha256", secret).update(value).digest("hex");
+}
+
+function safeEqual(left: string, right: string): boolean {
+  const leftDigest = createHmac("sha256", "cth-admin-credential").update(left).digest();
+  const rightDigest = createHmac("sha256", "cth-admin-credential").update(right).digest();
+  return timingSafeEqual(leftDigest, rightDigest);
 }
 
 function makeSession(): string | null {
@@ -60,7 +73,7 @@ export const requireAdmin: RequestHandler = (req, res, next) => {
   next();
 };
 
-router.post("/admin/login", (req, res): void => {
+router.post("/admin/login", adminLoginRateLimit, (req, res): void => {
   const username = typeof req.body?.username === "string" ? req.body.username.trim().toLowerCase() : "";
   const password = typeof req.body?.password === "string" ? req.body.password : "";
 
@@ -76,7 +89,7 @@ router.post("/admin/login", (req, res): void => {
     return;
   }
 
-  if (username !== adminUsername() || password !== configuredPassword) {
+  if (!safeEqual(username, adminUsername()) || !safeEqual(password, configuredPassword)) {
     res.status(401).json({ error: "Incorrect admin username or password." });
     return;
   }
@@ -89,7 +102,7 @@ router.post("/admin/login", (req, res): void => {
 
   res.setHeader(
     "Set-Cookie",
-    `${COOKIE_NAME}=${session}; HttpOnly; Path=/api; SameSite=Lax; Max-Age=${SESSION_TTL_SECONDS}`,
+    `${COOKIE_NAME}=${session}; HttpOnly; Path=/api; SameSite=Lax; Max-Age=${SESSION_TTL_SECONDS}${process.env.NODE_ENV === "production" ? "; Secure" : ""}`,
   );
   res.json({ authenticated: true });
 });

@@ -63,7 +63,7 @@ export function setPlayerSession(res: Response, playerName: string): boolean {
 
   res.setHeader(
     "Set-Cookie",
-    `${PLAYER_COOKIE_NAME}=${token}; HttpOnly; Path=/api; SameSite=Lax; Max-Age=${PLAYER_SESSION_TTL_SECONDS}`,
+    `${PLAYER_COOKIE_NAME}=${token}; HttpOnly; Path=/api; SameSite=Lax; Max-Age=${PLAYER_SESSION_TTL_SECONDS}${process.env.NODE_ENV === "production" ? "; Secure" : ""}`,
   );
   return true;
 }

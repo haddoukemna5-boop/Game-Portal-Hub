@@ -1,13 +1,13 @@
 ---
 name: API auth pattern
-description: How write endpoints authenticate callers — passwordHash verified server-side on every mutating request.
+description: Durable authentication boundaries for player writes and organizer-only data.
 ---
 
 ## Rule
-`PUT /progress/:name` and `POST /results` require `passwordHash` in the request body. The server fetches the stored hash from `playerProgressTable` and returns 403 on mismatch before touching any data.
+Player passwords are sent only during login and verified against salted, stretched server-side hashes. Successful login issues a signed HTTP-only player session; player reads and writes authorize against that session and its canonical player identity.
 
-`POST /results` also requires `playerName` (the canonical lowercased name) to identify the player record — firstName/lastName alone are insufficient because they're derived display values.
+Organizer credentials remain server-side environment secrets. Successful organizer login issues a separate signed HTTP-only admin session, and participant result reads and organizer mutations require that session.
 
-**Why:** There is no session or JWT system. The passwordHash (SHA-256 of the user's password) serves as the per-request credential. This matches the existing login flow and avoids introducing new infrastructure.
+**Why:** A client-generated or database-stored hash becomes a replayable credential if accepted directly. Separate signed sessions prevent hash replay and keep admin secrets out of browser bundles.
 
-**How to apply:** Any new mutating endpoint that touches player data must include the same passwordHash lookup + comparison before performing the write.
+**How to apply:** New player endpoints must use the authenticated session identity rather than client-supplied ownership fields. New organizer endpoints and sensitive participant-data reads must require the admin session.

@@ -25,7 +25,8 @@ import { hashPassword } from "../lib/password";
 // Helpers
 // ---------------------------------------------------------------------------
 
-const SESSION_SECRET = process.env.SESSION_SECRET ?? "test-admin-secret-123";
+process.env.SESSION_SECRET ??= "test-session-secret-123";
+process.env.ADMIN_PASSWORD ??= "test-admin-password-123";
 
 /** Create a fresh player directly in the DB, bypassing the login route. */
 async function seedPlayer(opts: {
@@ -50,10 +51,20 @@ async function seedPlayer(opts: {
 }
 
 /** Trigger the admin reset via the API. Returns the reset token. */
+async function authenticatedAdmin() {
+  const agent = request.agent(app);
+  await agent
+    .post("/api/admin/login")
+    .send({ username: process.env.ADMIN_USERNAME ?? "admin", password: process.env.ADMIN_PASSWORD })
+    .expect(200);
+  return agent;
+}
+
 async function adminReset(playerName: string): Promise<{ resetToken: string; expiresAt: string }> {
-  const res = await request(app)
+  const agent = await authenticatedAdmin();
+  const res = await agent
     .delete(`/api/progress/${encodeURIComponent(playerName)}/password`)
-    .send({ adminPasscode: SESSION_SECRET });
+    .send();
 
   expect(res.status, `admin reset failed: ${JSON.stringify(res.body)}`).toBe(200);
   expect(res.body.resetToken).toBeTruthy();
@@ -192,21 +203,36 @@ describe("DELETE /api/progress/:name/password — admin reset initiation", () =>
     expect(loginRes.status).toBe(401);
   });
 
-  it("rejects an incorrect admin passcode", async () => {
+  it("rejects an anonymous reset attempt", async () => {
     await seedPlayer({ name: testPlayerName });
 
     const res = await request(app)
       .delete(`/api/progress/${encodeURIComponent(testPlayerName)}/password`)
-      .send({ adminPasscode: "totallyWrong" });
+      .send();
 
     expect(res.status).toBe(401);
   });
 
   it("returns 404 for an unknown player", async () => {
-    const res = await request(app)
+    const agent = await authenticatedAdmin();
+    const res = await agent
       .delete("/api/progress/no-such-player-xyz/password")
-      .send({ adminPasscode: SESSION_SECRET });
+      .send();
 
     expect(res.status).toBe(404);
+  });
+
+  it("does not expose a username-only password replacement endpoint", async () => {
+    await seedPlayer({ name: testPlayerName });
+
+    await request(app)
+      .post("/api/reset-password")
+      .send({ name: testPlayerName, password: "attacker-password" })
+      .expect(404);
+
+    await request(app)
+      .post("/api/login")
+      .send({ name: testPlayerName, password: "old-password" })
+      .expect(200);
   });
 });

@@ -136,24 +136,6 @@ export const GetAdminSessionResponse = zod.object({
 
 
 /**
- * Allows a player to set a new password using their username alone. No second factor — appropriate for an internal game.
- * @summary Reset a player's password by username
- */
-
-
-
-
-export const ResetPasswordBody = zod.object({
-  "name": zod.string().min(1).describe('Username of the account to reset.'),
-  "password": zod.string().min(1)
-})
-
-export const ResetPasswordResponse = zod.object({
-  "error": zod.string()
-})
-
-
-/**
  * Returns the saved progress for a player by name. Returns 404 if not found.
  * @summary Get player progress
  */
@@ -246,18 +228,11 @@ export const LoginWithResetCodeResponse = zod.object({
 
 
 /**
- * Generates a one-time reset token for the named player. The token must be shared with the player so they can reclaim their account via POST /login/reset. Score, won keys, and times are preserved. Requires the SESSION_SECRET as admin passcode.
+ * Generates a one-time reset token for the named player. The token must be shared with the player so they can reclaim their account via POST /login/reset. Score, won keys, and times are preserved. Requires an authenticated admin session.
  * @summary Admin-initiated password reset
  */
 export const ResetPlayerPasswordParams = zod.object({
   "name": zod.coerce.string()
-})
-
-
-
-
-export const ResetPlayerPasswordBody = zod.object({
-  "adminPasscode": zod.string().min(1).describe('The organizer passcode — validated against SESSION_SECRET on the server.')
 })
 
 export const ResetPlayerPasswordResponse = zod.object({

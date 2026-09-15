@@ -24,7 +24,6 @@ import type {
   AdminAuthResult,
   AdminLoginInput,
   AdminLoginResult,
-  AdminResetInput,
   AdminSessionResult,
   ErrorResponse,
   GameResult,
@@ -36,7 +35,6 @@ import type {
   PasswordResetResult,
   PlayerProgress,
   PlayerProgressInput,
-  ResetPasswordInput,
   ResultsSummary
 } from './api.schemas';
 
@@ -517,78 +515,6 @@ export function useGetAdminSession<TData = Awaited<ReturnType<typeof getAdminSes
 
 
 
-export const getResetPasswordUrl = () => {
-
-
-
-
-  return `/api/reset-password`
-}
-
-/**
- * Allows a player to set a new password using their username alone. No second factor — appropriate for an internal game.
- * @summary Reset a player's password by username
- */
-export const resetPassword = async (resetPasswordInput: ResetPasswordInput, options?: Parameters<typeof customFetch>[1]): Promise<ErrorResponse> => {
-
-  return customFetch<ErrorResponse>(getResetPasswordUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(resetPasswordInput)
-  }
-);}
-
-
-
-
-
-export const getResetPasswordMutationOptions = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetPassword>>, TError,{data: BodyType<ResetPasswordInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof resetPassword>>, TError,{data: BodyType<ResetPasswordInput>}, TContext> => {
-
-const mutationKey = ['resetPassword'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resetPassword>>, {data: BodyType<ResetPasswordInput>}> = (props) => {
-          const {data} = props ?? {};
-
-          return  resetPassword(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type ResetPasswordMutationResult = NonNullable<Awaited<ReturnType<typeof resetPassword>>>
-    export type ResetPasswordMutationBody = BodyType<ResetPasswordInput>
-    export type ResetPasswordMutationError = ErrorType<ErrorResponse>
-
-    /**
- * @summary Reset a player's password by username
- */
-export const useResetPassword = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetPassword>>, TError,{data: BodyType<ResetPasswordInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof resetPassword>>,
-        TError,
-        {data: BodyType<ResetPasswordInput>},
-        TContext
-      > => {
-      return useMutation(getResetPasswordMutationOptions(options));
-    }
-
 export const getGetProgressUrl = (name: string,) => {
 
 
@@ -893,18 +819,17 @@ export const getResetPlayerPasswordUrl = (name: string,) => {
 }
 
 /**
- * Generates a one-time reset token for the named player. The token must be shared with the player so they can reclaim their account via POST /login/reset. Score, won keys, and times are preserved. Requires the SESSION_SECRET as admin passcode.
+ * Generates a one-time reset token for the named player. The token must be shared with the player so they can reclaim their account via POST /login/reset. Score, won keys, and times are preserved. Requires an authenticated admin session.
  * @summary Admin-initiated password reset
  */
-export const resetPlayerPassword = async (name: string,
-    adminResetInput: AdminResetInput, options?: Parameters<typeof customFetch>[1]): Promise<PasswordResetResult> => {
+export const resetPlayerPassword = async (name: string, options?: Parameters<typeof customFetch>[1]): Promise<PasswordResetResult> => {
 
   return customFetch<PasswordResetResult>(getResetPlayerPasswordUrl(name),
   {
     ...options,
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(adminResetInput)
+    method: 'DELETE'
+
+
   }
 );}
 
@@ -913,8 +838,8 @@ export const resetPlayerPassword = async (name: string,
 
 
 export const getResetPlayerPasswordMutationOptions = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetPlayerPassword>>, TError,{name: string;data: BodyType<AdminResetInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof resetPlayerPassword>>, TError,{name: string;data: BodyType<AdminResetInput>}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetPlayerPassword>>, TError,{name: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resetPlayerPassword>>, TError,{name: string}, TContext> => {
 
 const mutationKey = ['resetPlayerPassword'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -926,10 +851,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resetPlayerPassword>>, {name: string;data: BodyType<AdminResetInput>}> = (props) => {
-          const {name,data} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resetPlayerPassword>>, {name: string}> = (props) => {
+          const {name} = props ?? {};
 
-          return  resetPlayerPassword(name,data,requestOptions)
+          return  resetPlayerPassword(name,requestOptions)
         }
 
 
@@ -940,18 +865,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type ResetPlayerPasswordMutationResult = NonNullable<Awaited<ReturnType<typeof resetPlayerPassword>>>
-    export type ResetPlayerPasswordMutationBody = BodyType<AdminResetInput>
+
     export type ResetPlayerPasswordMutationError = ErrorType<ErrorResponse>
 
     /**
  * @summary Admin-initiated password reset
  */
 export const useResetPlayerPassword = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetPlayerPassword>>, TError,{name: string;data: BodyType<AdminResetInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetPlayerPassword>>, TError,{name: string}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof resetPlayerPassword>>,
         TError,
-        {name: string;data: BodyType<AdminResetInput>},
+        {name: string},
         TContext
       > => {
       return useMutation(getResetPlayerPasswordMutationOptions(options));

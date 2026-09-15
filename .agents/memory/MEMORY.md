@@ -1,1 +1,1 @@
-- [API auth pattern](api-auth-pattern.md) — PUT /progress and POST /results use passwordHash-in-body auth; verify against playerProgressTable before every write.
+- [API auth pattern](api-auth-pattern.md) — player and admin access use separate signed HTTP-only sessions; raw or stored password hashes are never accepted as credentials.

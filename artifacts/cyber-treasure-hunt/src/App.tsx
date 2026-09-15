@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import {
   getGetAdminSessionQueryKey, getGetResultsSummaryQueryKey, getHealthCheckQueryKey, getListResultsQueryKey,
-  useAdminLogin, useGetAdminSession, useGetResultsSummary, useHealthCheck, useListResults, useLogin, useMarkResultReal, useResetPassword, useResetPlayerPassword, useSaveProgress, useSubmitResult,
+  useAdminLogin, useGetAdminSession, useGetResultsSummary, useHealthCheck, useListResults, useLogin, useLoginWithResetCode, useMarkResultReal, useResetPlayerPassword, useSaveProgress, useSubmitResult,
 } from '@workspace/api-client-react';
 import type { GameResultInput } from '@workspace/api-client-react';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -553,13 +553,14 @@ function PlayerPage() {
   const [welcomeBack, setWelcomeBack] = useState(false);
   const [forgotMode, setForgotMode] = useState(false);
   const [resetUsername, setResetUsername] = useState('');
+  const [resetToken, setResetToken] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [resetError, setResetError] = useState('');
   const [resetSuccess, setResetSuccess] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const loginMutation = useLogin();
-  const resetMutation = useResetPassword();
+  const resetMutation = useLoginWithResetCode();
   const saveProgress = useSaveProgress();
   const partialSubmit = useSubmitResult();
   const prevWonLen = useRef(progress.won.length);
@@ -657,12 +658,20 @@ function PlayerPage() {
     setResetLoading(true);
     setResetError('');
     try {
-      await resetMutation.mutateAsync({ data: { name: resetUsername.trim().toLowerCase(), password: newPassword.trim() } });
+      const restored = await resetMutation.mutateAsync({ data: { name: resetUsername.trim().toLowerCase(), resetToken: resetToken.trim(), password: newPassword.trim() } });
+      update({
+        name: restored.name,
+        displayName: restored.displayName,
+        score: restored.score,
+        won: restored.won as number[],
+        times: restored.times as Progress['times'],
+        submitted: restored.submitted,
+      });
       setResetSuccess(true);
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } }).response?.status;
-      if (status === 404) {
-        setResetError('No account found with that username. Check the spelling and try again.');
+      if (status === 401) {
+        setResetError('That reset code is invalid or expired.');
       } else {
         setResetError('Could not connect. Check your connection and try again.');
       }
@@ -673,7 +682,7 @@ function PlayerPage() {
 
   const reset = () => {
     if (ADMIN_TEST) { window.location.assign('/admin'); return; }
-    localStorage.removeItem('cth_progress'); setProgress({ name: '', score: 0, won: [], times: {} }); setName(''); setDisplayName(''); setPassword(''); setStarted(false); setScreen('map'); setLocked(null); setWelcomeBack(false); setLoginError(''); setForgotMode(false); setResetUsername(''); setNewPassword(''); setConfirmPassword(''); setResetError(''); setResetSuccess(false); prevWonLen.current = 0;
+    localStorage.removeItem('cth_progress'); setProgress({ name: '', score: 0, won: [], times: {} }); setName(''); setDisplayName(''); setPassword(''); setStarted(false); setScreen('map'); setLocked(null); setWelcomeBack(false); setLoginError(''); setForgotMode(false); setResetUsername(''); setResetToken(''); setNewPassword(''); setConfirmPassword(''); setResetError(''); setResetSuccess(false); prevWonLen.current = 0;
   };
   const pick = (id: ChallengeId) => { const i = CHALLENGES.findIndex((c) => c.id === id); if (!isUnlocked(id) || (i > 0 && !progress.won.includes(i - 1))) { setLocked(id); setScreen('locked'); return; } const next = progress.times[id] ? progress : { ...progress, times: { ...progress.times, [id]: { start: Date.now(), seconds: null } } }; update(next); setScreen(id); };
 
@@ -730,12 +739,14 @@ function PlayerPage() {
                     <CheckCircle2 size={28} className="mx-auto mb-3 text-[hsl(var(--primary))]" />
                     <p className="font-bold">Password reset!</p>
                     <p className="mt-1 text-sm text-[hsl(var(--muted-foreground))]">You can now sign in with your new password.</p>
-                    <button type="button" onClick={() => { setForgotMode(false); setResetSuccess(false); setNewPassword(''); setConfirmPassword(''); setResetUsername(''); }} className="btn-primary mt-5 flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold">Back to sign in <ArrowRight size={16} /></button>
+                    <button type="button" onClick={() => { setForgotMode(false); setResetSuccess(false); setNewPassword(''); setConfirmPassword(''); setResetUsername(''); setResetToken(''); }} className="btn-primary mt-5 flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold">Back to sign in <ArrowRight size={16} /></button>
                   </div>
                 ) : (
                   <>
                     <label className="mono text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]" htmlFor="forgot-username">Username</label>
                     <input id="forgot-username" value={resetUsername} onChange={(e) => setResetUsername(e.target.value)} placeholder="e.g. alex.morgan" className="mt-2 w-full rounded-xl border border-[hsl(var(--border))] bg-white/70 px-4 py-3.5 outline-none transition focus:border-[hsl(var(--primary))]" data-testid="input-reset-username" required disabled={resetLoading} autoComplete="username" />
+                     <label className="mono mt-4 block text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]" htmlFor="forgot-reset-code">Reset code</label>
+                     <input id="forgot-reset-code" value={resetToken} onChange={(e) => setResetToken(e.target.value.toUpperCase())} placeholder="Code from your organizer" className="mono mt-2 w-full rounded-xl border border-[hsl(var(--border))] bg-white/70 px-4 py-3.5 outline-none transition focus:border-[hsl(var(--primary))]" data-testid="input-reset-code" required disabled={resetLoading} autoComplete="one-time-code" />
                     <label className="mono mt-4 block text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]" htmlFor="forgot-new-password">New password</label>
                     <input id="forgot-new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Choose a new password" className="mt-2 w-full rounded-xl border border-[hsl(var(--border))] bg-white/70 px-4 py-3.5 outline-none transition focus:border-[hsl(var(--primary))]" data-testid="input-reset-new-password" required disabled={resetLoading} autoComplete="new-password" minLength={4} />
                     <label className="mono mt-4 block text-[10px] uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]" htmlFor="forgot-confirm-password">Confirm new password</label>
@@ -806,10 +817,8 @@ function AdminPage() {
   const sortBy = (key: SortKey) => setSort((old) => ({ key, dir: old.key === key && old.dir === 'desc' ? 'asc' : 'desc' }));
   const handleResetPassword = (playerName: string, displayName: string) => {
     if (!window.confirm(`Reset password for "${displayName}"?\n\nThey will receive a one-time reset code to set a new password. Their score and progress are preserved.`)) return;
-    const adminPasscode = window.prompt('Enter your admin passcode (SESSION_SECRET) to authorise the reset:');
-    if (!adminPasscode) return;
     resetPasswordMutation.mutate(
-      { name: encodeURIComponent(playerName), data: { adminPasscode } },
+      { name: encodeURIComponent(playerName) },
       {
         onSuccess: (data) => window.alert(`Password reset for "${displayName}".\n\nGive them this one-time reset code:\n\n${data.resetToken}\n\nIt expires in 24 hours. They can enter it on the login screen to set a new password.`),
         onError: () => window.alert(`Failed to reset password for "${displayName}". Check your passcode and try again.`),

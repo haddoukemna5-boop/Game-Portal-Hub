@@ -4,8 +4,22 @@ import { and, eq, gt, isNotNull } from "drizzle-orm";
 import { db, playerProgressTable } from "@workspace/db";
 import { hashPassword, verifyPassword } from "../lib/password";
 import { authenticatedPlayerName, requirePlayer, setPlayerSession } from "../lib/player-auth";
+import { createAuthRateLimit } from "../middlewares/auth-rate-limit";
+import { requireAdmin } from "./admin";
 
 const router: IRouter = Router();
+const playerLoginRateLimit = createAuthRateLimit({
+  namespace: "player-login",
+  maxAttempts: 10,
+  windowMs: 15 * 60 * 1_000,
+  identifier: (req) => getBodyString(req.body, "name"),
+});
+const passwordResetRateLimit = createAuthRateLimit({
+  namespace: "password-reset",
+  maxAttempts: 5,
+  windowMs: 15 * 60 * 1_000,
+  identifier: (req) => getBodyString(req.body, "name"),
+});
 
 type ProgressBody = {
   name: string;
@@ -49,13 +63,6 @@ function rowToLoginResult(row: typeof playerProgressTable.$inferSelect, isNew: b
   };
 }
 
-function requireSessionSecret(passcode: string): string | null {
-  const secret = process.env.SESSION_SECRET;
-  if (!secret) return "Admin authentication is not configured on this server.";
-  if (!passcode || passcode !== secret) return "Incorrect admin passcode.";
-  return null;
-}
-
 function getBodyString(body: unknown, key: string): string {
   return body && typeof body === "object" && typeof (body as Record<string, unknown>)[key] === "string"
     ? ((body as Record<string, unknown>)[key] as string).trim()
@@ -74,7 +81,7 @@ async function authenticatePasswordRequest(
   return playerName;
 }
 
-router.post("/login", async (req, res): Promise<void> => {
+router.post("/login", playerLoginRateLimit, async (req, res): Promise<void> => {
   const rawName = getBodyString(req.body, "name");
   const password = getBodyString(req.body, "password");
   const displayName = getBodyString(req.body, "displayName");
@@ -135,7 +142,7 @@ router.post("/login", async (req, res): Promise<void> => {
   }
 });
 
-router.post("/login/reset", async (req, res): Promise<void> => {
+router.post("/login/reset", passwordResetRateLimit, async (req, res): Promise<void> => {
   const name = normalizeName(getBodyString(req.body, "name"));
   const resetToken = getBodyString(req.body, "resetToken").toUpperCase();
   const password = getBodyString(req.body, "password");
@@ -170,28 +177,6 @@ router.post("/login/reset", async (req, res): Promise<void> => {
     return;
   }
   res.json(rowToLoginResult(row, false));
-});
-
-router.post("/reset-password", async (req, res): Promise<void> => {
-  const name = normalizeName(getBodyString(req.body, "name"));
-  const password = getBodyString(req.body, "password");
-  if (!name || !password) {
-    res.status(400).json({ error: "Username and new password are required." });
-    return;
-  }
-
-  const passwordHash = await hashPassword(password);
-  const [row] = await db
-    .update(playerProgressTable)
-    .set({ passwordHash, resetToken: null, resetTokenExpiry: null, updatedAt: new Date() })
-    .where(eq(playerProgressTable.name, name))
-    .returning();
-
-  if (!row) {
-    res.status(404).json({ error: "No account found with that username." });
-    return;
-  }
-  res.json({ error: "Password reset successfully." });
 });
 
 router.get("/progress/:name", async (req, res): Promise<void> => {
@@ -241,14 +226,9 @@ router.put("/progress/:name", async (req, res): Promise<void> => {
   res.json(row);
 });
 
-router.delete("/progress/:name/password", async (req, res): Promise<void> => {
-  const authErr = requireSessionSecret(getBodyString(req.body, "adminPasscode"));
-  if (authErr) {
-    res.status(process.env.SESSION_SECRET ? 401 : 503).json({ error: authErr });
-    return;
-  }
-
-  const name = normalizeName(decodeURIComponent(req.params.name));
+router.delete("/progress/:name/password", requireAdmin, async (req, res): Promise<void> => {
+  const rawName = Array.isArray(req.params.name) ? req.params.name[0] : req.params.name;
+  const name = normalizeName(decodeURIComponent(rawName));
   const [existing] = await db
     .select()
     .from(playerProgressTable)

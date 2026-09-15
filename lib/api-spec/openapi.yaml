@@ -148,37 +148,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-  /reset-password:
-    post:
-      operationId: resetPassword
-      tags: [progress]
-      summary: Reset a player's password by username
-      description: Allows a player to set a new password using their username alone. No second factor — appropriate for an internal game.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ResetPasswordInput"
-      responses:
-        "200":
-          description: Password reset successfully
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "400":
-          description: Missing fields
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "404":
-          description: Username not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
   /progress/{name}:
     get:
       operationId: getProgress
@@ -301,19 +270,13 @@ paths:
       operationId: resetPlayerPassword
       tags: [progress]
       summary: Admin-initiated password reset
-      description: Generates a one-time reset token for the named player. The token must be shared with the player so they can reclaim their account via POST /login/reset. Score, won keys, and times are preserved. Requires the SESSION_SECRET as admin passcode.
+      description: Generates a one-time reset token for the named player. The token must be shared with the player so they can reclaim their account via POST /login/reset. Score, won keys, and times are preserved. Requires an authenticated admin session.
       parameters:
         - name: name
           in: path
           required: true
           schema:
             type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AdminResetInput"
       responses:
         "200":
           description: Reset token generated — share it with the player
@@ -322,7 +285,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/PasswordResetResult"
         "401":
-          description: Invalid admin passcode
+          description: Admin authentication required
           content:
             application/json:
               schema:
@@ -585,20 +548,6 @@ components:
           type: boolean
       required:
         - authenticated
-    ResetPasswordInput:
-      type: object
-      properties:
-        name:
-          type: string
-          minLength: 1
-          description: Username of the account to reset.
-        password:
-          type: string
-          minLength: 1
-          format: password
-      required:
-        - name
-        - password
     PlayerProgress:
       type: object
       properties:
@@ -641,15 +590,6 @@ components:
           type: boolean
       required:
         - ok
-    AdminResetInput:
-      type: object
-      properties:
-        adminPasscode:
-          type: string
-          minLength: 1
-          description: The organizer passcode — validated against SESSION_SECRET on the server.
-      required:
-        - adminPasscode
     PasswordResetResult:
       type: object
       description: Returned when an admin-initiated password reset succeeds. Contains the one-time token to share with the player.
